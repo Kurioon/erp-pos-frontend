@@ -1,0 +1,86 @@
+<template>
+  <aside class="sidebar">
+    <div class="logo">ERP / POS</div>
+    <nav class="nav-menu">
+      <router-link
+        v-for="item in menuItems"
+        :key="item.path"
+        :to="item.path"
+        class="nav-link"
+        active-class="active-link"
+      >
+        <component :is="item.icon" class="icon" />
+        {{ item.name }}
+      </router-link>
+    </nav>
+  </aside>
+</template>
+
+<script setup>
+import IconCard from '@/components/icons/IconCard.vue'
+import IconBox from '@/components/icons/IconBox.vue'
+import IconRepair from '@/components/icons/IconRepair.vue'
+
+const menuItems = [
+  { name: 'Каса (POS)', path: '/pos', icon: IconCard },
+  { name: 'Склади', path: '/warehouses', icon: IconBox },
+  { name: 'Ремонти', path: '/repairs', icon: IconRepair }
+]
+</script>
+
+<style scoped>
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  background-color: #1e293b; 
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.logo {
+  height: 72px; 
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  border-bottom: 1px solid #334155; 
+}
+
+.nav-menu {
+  padding: 24px 16px; 
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nav-link {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: #cbd5e1; 
+  border-radius: 8px; 
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.nav-link:hover {
+  background-color: #334155; 
+  color: #ffffff;
+}
+
+.active-link {
+  background-color: #3b82f6; 
+  color: #ffffff;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+</style>
