@@ -10,10 +10,28 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('../views/DashboardView.vue'),
+      meta: { requiresAuth: true, allowedRoles: ['admin'] }, 
+    },
+    {
       path: '/pos',
       name: 'pos',
       component: () => import('../views/PosView.vue'),
       meta: { requiresAuth: true, allowedRoles: ['seller', 'admin'] },
+    },
+    {
+      path: '/warehouses',
+      name: 'warehouses',
+      component: () => import('../views/WarehousesView.vue'),
+      meta: { requiresAuth: true, allowedRoles: ['seller', 'admin'] }, 
+    },
+    {
+      path: '/procurement',
+      name: 'procurement',
+      component: () => import('../views/ProcurementView.vue'),
+      meta: { requiresAuth: true, allowedRoles: ['admin'] }, 
     },
     {
       path: '/repairs',
@@ -22,9 +40,9 @@ const router = createRouter({
       meta: { requiresAuth: true, allowedRoles: ['seller', 'admin'] },
     },
     {
-      path: '/warehouses',
-      name: 'warehouses',
-      component: () => import('../views/WarehousesView.vue'),
+      path: '/finance',
+      name: 'finance',
+      component: () => import('../views/FinanceView.vue'),
       meta: { requiresAuth: true, allowedRoles: ['admin'] },
     },
     {
