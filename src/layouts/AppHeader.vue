@@ -15,12 +15,13 @@
 
 <style scoped>
 .header {
-  height: 64px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  height: 72px;
+  padding: 0 32px;
   display: flex;
   align-items: center;
-  padding: 0 24px;
+  justify-content: space-between;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
 }
 .header-content {
   width: 100%;

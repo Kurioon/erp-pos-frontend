@@ -30,47 +30,57 @@ const menuItems = [
 
 <style scoped>
 .sidebar {
-  width: 250px;
+  width: 260px;
   height: 100vh;
-  background-color: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  background-color: #1e293b; 
+  color: #ffffff;
   display: flex;
   flex-direction: column;
 }
+
 .logo {
-  padding: 24px;
+  height: 72px; 
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 1.25rem;
-  font-weight: bold;
-  color: #111827;
-  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  border-bottom: 1px solid #334155; 
 }
+
 .nav-menu {
-  padding: 16px 0;
+  padding: 24px 16px; 
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+
 .nav-link {
-  padding: 12px 24px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
   text-decoration: none;
-  color: #4b5563;
-  transition: background-color 0.2s ease;
+  color: #cbd5e1; 
+  border-radius: 8px; 
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
+
+.nav-link:hover {
+  background-color: #334155; 
+  color: #ffffff;
+}
+
+.active-link {
+  background-color: #3b82f6; 
+  color: #ffffff;
+}
+
 .icon {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.nav-link:hover {
-  background-color: #f3f4f6;
-}
-.active-link {
-  background-color: #eff6ff;
-  color: #2563eb;
-  border-right: 3px solid #2563eb;
-  font-weight: 500;
 }
 </style>
