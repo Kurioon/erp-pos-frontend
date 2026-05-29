@@ -17,9 +17,9 @@
 </template>
 
 <script setup>
-import IconCard from '@/components/ui/icons/IconCard.vue'
-import IconBox from '@/components/ui/icons/IconBox.vue'
-import IconRepair from '@/components/ui/icons/IconRepair.vue'
+import IconCard from '@/components/icons/IconCard.vue'
+import IconBox from '@/components/icons/IconBox.vue'
+import IconRepair from '@/components/icons/IconRepair.vue'
 
 const menuItems = [
   { name: 'Каса (POS)', path: '/pos', icon: IconCard },
