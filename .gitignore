@@ -43,3 +43,5 @@ __screenshots__/
 .env
 .env.*
 !.env.example
+*storybook.log
+storybook-static
