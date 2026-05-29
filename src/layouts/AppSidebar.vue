@@ -17,14 +17,20 @@
 </template>
 
 <script setup>
+import IconDashboard from '@/components/icons/IconDashboard.vue'
 import IconCard from '@/components/icons/IconCard.vue'
 import IconBox from '@/components/icons/IconBox.vue'
+import IconProcurement from '@/components/icons/IconProcurement.vue'
 import IconRepair from '@/components/icons/IconRepair.vue'
+import IconFinance from '@/components/icons/IconFinance.vue'
 
 const menuItems = [
-  { name: 'Каса (POS)', path: '/pos', icon: IconCard },
+  { name: 'Дашборд', path: '/dashboard', icon: IconDashboard },
+  { name: 'POS-термінал', path: '/pos', icon: IconCard },
   { name: 'Склади', path: '/warehouses', icon: IconBox },
-  { name: 'Ремонти', path: '/repairs', icon: IconRepair }
+  { name: 'Закупівлі', path: '/procurement', icon: IconProcurement },
+  { name: 'Ремонти', path: '/repairs', icon: IconRepair },
+  { name: 'Фінанси', path: '/finance', icon: IconFinance }
 ]
 </script>
 
