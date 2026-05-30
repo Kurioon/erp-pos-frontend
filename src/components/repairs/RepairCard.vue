@@ -1,39 +1,34 @@
 <script setup>
-import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
-
 defineProps({
   job: {
     type: Object,
     required: true
   }
 })
-
-const getStatusVariant = (status) => {
-  switch (status) {
-    case 'прийнято': return 'warning'
-    case 'відремонтовано': return 'success'
-    case 'очікує компонентів': return 'danger'
-    default: return 'primary'
-  }
-}
 </script>
 
 <template>
   <div class="repair-card">
     <div class="card-header">
-      <span class="device-name">{{ job.device_name }}</span>
-      <BaseStatusBadge :variant="getStatusVariant(job.status)">
-  {{ job.status }}
-</BaseStatusBadge>
+      <span class="job-id">R00{{ job.id }}</span>
+      <span class="storage-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        {{ job.storage_cell }}
+      </span>
     </div>
     
     <div class="card-body">
-      <p class="customer"><strong>Клієнт:</strong> {{ job.customer_name }}</p>
+      <h3 class="device-name">{{ job.device_name }}</h3>
       <p class="description">{{ job.description }}</p>
-    </div>
-    
-    <div class="card-footer">
-      <span class="storage-cell">Комірка: {{ job.storage_cell }}</span>
+      
+      <div class="customer-info">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        <span>{{ job.customer_name }}</span>
+      </div>
+      <div class="date-info">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <span>{{ job.created_at.split('T')[0] }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -44,14 +39,14 @@ const getStatusVariant = (status) => {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: box-shadow 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
 }
 
 .repair-card:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
@@ -59,40 +54,48 @@ const getStatusVariant = (status) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 8px;
+}
+
+.job-id {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.storage-pill {
+  color: #3b82f6;
+  border: 1px solid #bfdbfe;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .device-name {
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #1e293b;
-}
-
-.card-body {
-  font-size: 0.9rem;
-  color: #475569;
-  margin-bottom: 12px;
-}
-
-.customer {
-  margin-bottom: 4px;
+  margin: 0 0 4px 0;
 }
 
 .description {
   color: #64748b;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
+  font-size: 0.85rem;
+  margin: 0 0 12px 0;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.card-footer {
+.customer-info, .date-info {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
   font-size: 0.8rem;
-  color: #94a3b8;
-  font-weight: 500;
+  margin-bottom: 4px;
 }
 </style>
