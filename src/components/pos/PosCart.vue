@@ -27,7 +27,7 @@
               aria-label="Збільшити кількість"
             >+</button>
           </div>
-          <span class="item-total">{{ formatCurrency(item.price * item.qty) }}</span>
+          <span class="item-total">{{ formatCurrency(item.price * item.qty, cartStore.currency) }}</span>
         </div>
       </transition-group>
     </div>
@@ -35,8 +35,7 @@
     <div class="checkout-panel">
       <div class="summary-row total-row">
         <span class="summary-label">Разом</span>
-        <strong>{{ cartStore.totalAmount === 0 ? '0 ₴' : formatCurrency(cartStore.totalAmount) }}</strong>
-      </div>
+        <strong>{{ formatCurrency(cartStore.totalAmount, cartStore.currency) }}</strong>      </div>
 
       <div class="input-group">
         <label class="group-label">Тип оплати</label>
@@ -75,7 +74,7 @@
 
           <div class="summary-row debt-row" v-if="cartStore.prepayAmount > 0 && cartStore.balanceDue > 0 && !isPrepayInvalid">
             <span class="summary-label">Борг клієнта:</span>
-            <strong>{{ formatCurrency(cartStore.balanceDue) }}</strong>
+            <strong>{{ formatCurrency(cartStore.balanceDue, cartStore.currency) }}</strong>
           </div>
         </div>
       </transition>
