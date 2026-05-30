@@ -1,5 +1,39 @@
+<script setup>
+import { useProcurementStore } from '@/stores/procurement'
+import BaseButton from '@/components/ui/BaseButton.vue'
+
+
+const currentStore = useProcurementStore()
+</script>
+
 <template>
-  <div>
-    <h1>Закупівлі (Постачальники)</h1>
-    </div>
+  <div class="view-wrapper">
+    <header class="header">
+      <h1>Закупівлі</h1>
+      <BaseButton>Додати запис</BaseButton>
+    </header>
+
+    <main class="content-list">
+      <!-- Поки просто виводимо весь об'єкт стора, щоб переконатися, що він підключений -->
+      <pre class="mock-data">{{ currentStore }}</pre>
+    </main>
+  </div>
 </template>
+
+<style scoped>
+.view-wrapper {
+  padding: 20px;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.mock-data {
+  border: 1px dashed #ccc;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+</style>
