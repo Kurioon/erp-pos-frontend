@@ -3,10 +3,25 @@ import { ref, computed } from 'vue'
 import { useRepairsStore } from '@/stores/repairs'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import RepairCard from '@/components/repairs/RepairCard.vue'
+import RepairFormModal from '@/components/repairs/RepairFormModal.vue'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 
 const repairsStore = useRepairsStore()
 const viewMode = ref('kanban')
+const isModalOpen = ref(false) // Керує видимістю модалки
+
+// Функція, яка приймає дані з форми і створює ремонт
+const handleAddRepair = (formData) => {
+  const newId = repairsStore.jobs.length ? Math.max(...repairsStore.jobs.map(j => j.id)) + 1 : 1
+  const newRepair = {
+    id: newId,
+    ...formData,
+    status: 'прийнято', // Всі нові ремонти падають у першу колонку
+    created_at: new Date().toISOString()
+  }
+  repairsStore.jobs.push(newRepair) // Додаємо в стор
+  isModalOpen.value = false // Закриваємо модалку
+}
 
 // Дані для Канбан-дошки
 const pendingJobs = computed(() => repairsStore.jobs.filter(j => j.status === 'прийнято'))
@@ -30,6 +45,18 @@ const getTableStatusClass = (status) => {
   if (s.includes('очікує')) return 'status-waiting'
   if (s.includes('відремонтовано')) return 'status-completed'
   return 'status-pending'
+}
+// Функція для красивого виводу дати і часу
+const formatDateTime = (isoString) => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  return date.toLocaleString('uk-UA', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 </script>
 
@@ -58,7 +85,12 @@ const getTableStatusClass = (status) => {
             Таблиця
           </button>
         </div>
-        <BaseButton>+ Новий ремонт</BaseButton>
+        <BaseButton @click="isModalOpen = true">+ Новий ремонт</BaseButton>
+        <RepairFormModal 
+      v-if="isModalOpen" 
+      @close="isModalOpen = false" 
+      @submit="handleAddRepair" 
+    />
       </div>
     </header>
 
@@ -138,7 +170,7 @@ const getTableStatusClass = (status) => {
             <td class="font-medium">
               {{ job.price ? job.price + ' ₴' : '3 500 ₴' }}
             </td>
-            <td class="text-muted">{{ job.created_at.split('T')[0] }}</td>
+            <td class="text-muted">{{ formatDateTime(job.created_at) }}</td>
           </tr>
         </tbody>
       </table>
