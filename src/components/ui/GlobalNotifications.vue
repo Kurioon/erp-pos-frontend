@@ -6,6 +6,8 @@
         :key="toast.id"
         :class="['toast', `toast-${toast.type}`]"
         @click="removeNotification(toast.id)"
+        role="alert"
+        aria-live="assertive"
       >
         {{ toast.message }}
       </div>
