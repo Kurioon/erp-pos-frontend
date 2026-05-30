@@ -1,10 +1,10 @@
 <script setup>
-
-import { useFinanceStore } from '@/stores/finance'
+import { useRepairsStore } from '@/stores/repairs'
+import { useInventoryStore } from '@/stores/inventory'
 import BaseButton from '@/components/ui/BaseButton.vue'
 
-
-const currentStore = useFinanceStore()
+const repairsStore = useRepairsStore()
+const inventoryStore = useInventoryStore()
 </script>
 
 <template>
@@ -14,10 +14,10 @@ const currentStore = useFinanceStore()
       <h1>Фінанси</h1>
       <BaseButton>Додати запис</BaseButton>
     </header>
-
     <main class="content-list">
-      <pre class="mock-data">{{ currentStore }}</pre>
-    </main>
+  <pre class="mock-data">Ремонти: {{ repairsStore.jobs }}</pre>
+  <pre class="mock-data">Склад: {{ inventoryStore }}</pre>
+</main>
   </div>
 </template>
 

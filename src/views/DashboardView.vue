@@ -1,9 +1,10 @@
 <script setup>
-import { useDashboardStore } from '@/stores/dashboard'
+import { useRepairsStore } from '@/stores/repairs'
+import { useInventoryStore } from '@/stores/inventory'
 import BaseButton from '@/components/ui/BaseButton.vue'
 
-// І ТУТ ЗМІНЮЄМО
-const currentStore = useDashboardStore()
+const repairsStore = useRepairsStore()
+const inventoryStore = useInventoryStore()
 </script>
 
 <template>
@@ -14,8 +15,9 @@ const currentStore = useDashboardStore()
     </header>
 
     <main class="content-list">
-      <pre class="mock-data">{{ currentStore }}</pre>
-    </main>
+  <pre class="mock-data">Ремонти: {{ repairsStore.jobs }}</pre>
+  <pre class="mock-data">Склад: {{ inventoryStore }}</pre>
+</main>
   </div>
 </template>
 

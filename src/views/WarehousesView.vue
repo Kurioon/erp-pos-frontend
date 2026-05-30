@@ -1,8 +1,9 @@
 <script setup>
 
-import { useWarehousesStore } from '@/stores/warehouses'
+import { useInventoryStore } from '@/stores/inventory'
 import BaseButton from '@/components/ui/BaseButton.vue'
-const currentStore = useWarehousesStore()
+const currentStore = useInventoryStore()
+
 </script>
 
 <template>

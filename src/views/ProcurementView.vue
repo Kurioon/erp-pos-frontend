@@ -14,7 +14,6 @@ const currentStore = useProcurementStore()
     </header>
 
     <main class="content-list">
-      <!-- Поки просто виводимо весь об'єкт стора, щоб переконатися, що він підключений -->
       <pre class="mock-data">{{ currentStore }}</pre>
     </main>
   </div>

@@ -1,6 +1,7 @@
 <script setup>
 import { useRepairsStore } from '@/stores/repairs'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import RepairCard from '@/components/repairs/RepairCard.vue'
 
 const repairsStore = useRepairsStore()
 </script>
@@ -13,13 +14,11 @@ const repairsStore = useRepairsStore()
     </header>
 
     <main class="repairs-list">
-      <div 
-        v-for="item in repairsStore.jobs" 
-        :key="item.id" 
-        class="repair-card-mock"
-      >
-        <pre>{{ item }}</pre>
-      </div>
+      <RepairCard 
+  v-for="item in repairsStore.jobs" 
+  :key="item.id" 
+  :job="item" 
+/>
     </main>
   </div>
 </template>
