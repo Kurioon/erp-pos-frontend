@@ -1,11 +1,14 @@
-ї<script setup>
-import { computed } from 'vue'
+<script setup>
+import { ref, computed } from 'vue'
 import { useRepairsStore } from '@/stores/repairs'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import RepairCard from '@/components/repairs/RepairCard.vue'
+import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 
 const repairsStore = useRepairsStore()
+const viewMode = ref('kanban')
 
+// Дані для Канбан-дошки
 const pendingJobs = computed(() => repairsStore.jobs.filter(j => j.status === 'прийнято'))
 const waitingJobs = computed(() => repairsStore.jobs.filter(j => j.status.includes('очікує')))
 const completedJobs = computed(() => repairsStore.jobs.filter(j => j.status === 'відремонтовано'))
@@ -13,6 +16,21 @@ const deliveredJobs = computed(() => repairsStore.jobs.filter(j => j.status === 
 
 const totalJobs = computed(() => repairsStore.jobs.length)
 const activeJobs = computed(() => pendingJobs.value.length + waitingJobs.value.length)
+
+// Робить першу літеру великою (прийнято -> Прийнято)
+const formatStatus = (status) => {
+  if (!status) return ''
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+// Повертає правильний CSS клас для статусу
+const getTableStatusClass = (status) => {
+  const s = status.toLowerCase()
+  if (s.includes('прийнято')) return 'status-pending'
+  if (s.includes('очікує')) return 'status-waiting'
+  if (s.includes('відремонтовано')) return 'status-completed'
+  return 'status-pending'
+}
 </script>
 
 <template>
@@ -25,14 +43,26 @@ const activeJobs = computed(() => pendingJobs.value.length + waitingJobs.value.l
       
       <div class="header-actions">
         <div class="view-toggle">
-          <button class="toggle-btn active">Канбан</button>
-          <button class="toggle-btn">Таблиця</button>
+          <button 
+            class="toggle-btn" 
+            :class="{ active: viewMode === 'kanban' }"
+            @click="viewMode = 'kanban'"
+          >
+            Канбан
+          </button>
+          <button 
+            class="toggle-btn" 
+            :class="{ active: viewMode === 'table' }"
+            @click="viewMode = 'table'"
+          >
+            Таблиця
+          </button>
         </div>
         <BaseButton>+ Новий ремонт</BaseButton>
       </div>
     </header>
 
-    <main class="kanban-board">
+    <main v-if="viewMode === 'kanban'" class="kanban-board">
       <div class="kanban-column col-pending">
         <div class="column-header">
           <h2 class="column-title">Прийнято</h2>
@@ -73,6 +103,46 @@ const activeJobs = computed(() => pendingJobs.value.length + waitingJobs.value.l
         </div>
       </div>
     </main>
+
+    <main v-else class="table-container">
+      <table class="repairs-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>ПРИСТРІЙ</th>
+            <th>КЛІЄНТ</th>
+            <th>НЕСПРАВНІСТЬ</th>
+            <th>КОМІРКА</th>
+            <th>СТАТУС</th>
+            <th>ОЦІНКА</th> <th>ДАТА</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="job in repairsStore.jobs" :key="job.id">
+            <td class="text-muted">R00{{ job.id }}</td>
+            <td class="font-medium">{{ job.device_name }}</td>
+            <td>{{ job.customer_name }}</td>
+            <td class="text-truncate" :title="job.description">{{ job.description }}</td>
+            <td>
+              <span class="storage-pill">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                {{ job.storage_cell }}
+              </span>
+            </td>
+            
+            <td>
+              <span class="table-status" :class="getTableStatusClass(job.status)">
+                {{ formatStatus(job.status) }}
+              </span>
+            </td>
+            <td class="font-medium">
+              {{ job.price ? job.price + ' ₴' : '3 500 ₴' }}
+            </td>
+            <td class="text-muted">{{ job.created_at.split('T')[0] }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
   </div>
 </template>
 
@@ -82,7 +152,7 @@ const activeJobs = computed(() => pendingJobs.value.length + waitingJobs.value.l
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff; /* Білий фон самої сторінки */
+  background-color: #ffffff;
 }
 
 .header {
@@ -110,29 +180,32 @@ const activeJobs = computed(() => pendingJobs.value.length + waitingJobs.value.l
   gap: 16px;
 }
 
+/* Стилі перемикача */
 .view-toggle {
   display: flex;
-  border: 1px solid #cbd5e1; 
+  border: 1px solid #cbd5e1;
   border-radius: 6px;
   overflow: hidden;
   background-color: white;
 }
 
 .toggle-btn {
-  padding: 8px 24px; 
+  padding: 8px 24px;
   background: transparent;
   border: none;
   font-size: 0.95rem;
   font-weight: 500;
-  color: #334155; 
+  color: #334155;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .toggle-btn.active {
-  background: #2563eb; 
+  background: #2563eb;
   color: white;
 }
+
+/* Стилі Канбан-дошки */
 .kanban-board {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -153,10 +226,10 @@ const activeJobs = computed(() => pendingJobs.value.length + waitingJobs.value.l
   border-top: 4px solid transparent; 
 }
 
-.col-pending { border-top-color: #334155; }   /* Темно-сірий */
-.col-waiting { border-top-color: #f59e0b; }   /* Жовтий */
-.col-completed { border-top-color: #3b82f6; } /* Синій */
-.col-delivered { border-top-color: #10b981; } /* Зелений */
+.col-pending { border-top-color: #334155; }
+.col-waiting { border-top-color: #f59e0b; }
+.col-completed { border-top-color: #3b82f6; }
+.col-delivered { border-top-color: #10b981; }
 
 .column-header {
   display: flex;
@@ -184,5 +257,96 @@ const activeJobs = computed(() => pendingJobs.value.length + waitingJobs.value.l
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* Стилі Таблиці */
+.table-container {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.repairs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.repairs-table th {
+  text-align: left;
+  padding: 16px;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.repairs-table td {
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.repairs-table tr:last-child td {
+  border-bottom: none;
+}
+
+.repairs-table tr:hover {
+  background-color: #f8fafc;
+}
+
+.text-muted { color: #94a3b8; }
+.font-medium { font-weight: 500; color: #1e293b; }
+
+.text-truncate {
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ідеальна комірка */
+.storage-pill {
+  background-color: #eff6ff; 
+  color: #2563eb;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.table-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  display: inline-block;
+}
+
+.status-pending { 
+  background: #f8fafc; 
+  color: #64748b; 
+  border-color: #e2e8f0; 
+}
+
+.status-waiting { 
+  background: #fffbeb; 
+  color: #d97706; 
+  border-color: #fde68a; 
+}
+
+.status-completed { 
+  background: #eff6ff; 
+  color: #2563eb; 
+  border-color: #bfdbfe; 
 }
 </style>
