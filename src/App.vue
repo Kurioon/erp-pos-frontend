@@ -1,4 +1,6 @@
 <template>
+  <GlobalNotifications />
+
   <DefaultLayout v-if="showLayout" />
   
   <router-view v-else />
@@ -8,6 +10,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import GlobalNotifications from '@/components/ui/GlobalNotifications.vue'
 
 const route = useRoute()
 const showLayout = computed(() => route.meta.requiresAuth)
@@ -20,7 +23,7 @@ body {
   font-family: 'Inter', sans-serif;
   margin: 0;
   padding: 0;
-  background-color: #f8fafc; 
+  background-color: #f8fafc;
   color: #0f172a;
 }
 

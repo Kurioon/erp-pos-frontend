@@ -13,7 +13,7 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),
-      meta: { requiresAuth: true, allowedRoles: ['admin'] }, 
+      meta: { requiresAuth: true, allowedRoles: ['admin'] },
     },
     {
       path: '/pos',
@@ -25,13 +25,13 @@ const router = createRouter({
       path: '/warehouses',
       name: 'warehouses',
       component: () => import('../views/WarehousesView.vue'),
-      meta: { requiresAuth: true, allowedRoles: ['seller', 'admin'] }, 
+      meta: { requiresAuth: true, allowedRoles: ['seller', 'admin'] },
     },
     {
       path: '/procurement',
       name: 'procurement',
       component: () => import('../views/ProcurementView.vue'),
-      meta: { requiresAuth: true, allowedRoles: ['admin'] }, 
+      meta: { requiresAuth: true, allowedRoles: ['admin'] },
     },
     {
       path: '/repairs',
