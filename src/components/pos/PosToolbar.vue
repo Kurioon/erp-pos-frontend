@@ -18,7 +18,7 @@
       </select>
 
       <div v-else class="locked-cashbox">
-        <span class="lock-icon">🔒</span>
+        <IconLock class="lock-icon" />
         {{ cartStore.activeCashbox?.name || 'Завантаження...' }}
       </div>
     </div>
@@ -28,6 +28,7 @@
 <script setup>
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/pos'
+import IconLock from '@/components/icons/IconLock.vue'
 
 const authStore = useAuthStore()
 const cartStore = useCartStore()
@@ -84,7 +85,7 @@ const cartStore = useCartStore()
 .locked-cashbox {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px; 
   padding: 8px 12px;
   background: #f1f5f9;
   border: 1px dashed #cbd5e1;
@@ -96,7 +97,8 @@ const cartStore = useCartStore()
 }
 
 .lock-icon {
-  font-size: 0.85rem;
-  opacity: 0.7;
+  width: 16px;
+  height: 16px;
+  color: #64748b;
 }
 </style>
