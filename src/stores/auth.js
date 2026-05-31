@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { USER_ROLES } from '@/constants/roles' 
 
 export const useAuthStore = defineStore('auth', () => {
   const router = useRouter()
@@ -20,10 +21,10 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       if (username === 'admin' && password === '1234') {
         token.value = 'mock-jwt-token-admin'
-        user.value = { id: 1, name: 'Керівник', role: 'admin' }
+        user.value = { id: 1, name: 'Керівник', role: USER_ROLES.ADMIN }
       } else if (username === 'seller' && password === '1234') {
         token.value = 'mock-jwt-token-seller'
-        user.value = { id: 2, name: 'Касир', role: 'seller' }
+        user.value = { id: 2, name: 'Касир', role: USER_ROLES.SELLER }
       } else {
         throw new Error('Невірний логін або пароль')
       }
@@ -31,7 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('token', token.value)
       localStorage.setItem('user', JSON.stringify(user.value))
 
-      if (user.value.role === 'admin') {
+      if (user.value.role === USER_ROLES.ADMIN) {
         router.push('/dashboard')
       } else {
         router.push('/pos')
