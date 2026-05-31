@@ -7,6 +7,12 @@ export const useCartStore = defineStore('pos', () => {
   const commentTtn = ref('')
   const currency = ref('UAH')
 
+  const availableCashboxes = ref([
+    { id: 1, name: 'Каса №1 (Головна)', currency: 'UAH' },
+    { id: 2, name: 'Каса №2 (Долар)', currency: 'USD' },
+  ])
+  const activeCashbox = ref(availableCashboxes.value[0])
+
   const totalAmount = computed(() => {
     return items.value.reduce((sum, item) => sum + item.price * item.qty, 0)
   })
@@ -96,6 +102,7 @@ export const useCartStore = defineStore('pos', () => {
     debt_amount: balanceDue.value,
     status: orderStatus.value,
     comment_ttn: commentTtn.value,
+    cashbox_id: activeCashbox.value.id,
   })
 
   return {
@@ -103,6 +110,8 @@ export const useCartStore = defineStore('pos', () => {
     prepayAmount,
     commentTtn,
     currency,
+    availableCashboxes, 
+    activeCashbox,
     totalAmount,
     balanceDue,
     orderStatus,
