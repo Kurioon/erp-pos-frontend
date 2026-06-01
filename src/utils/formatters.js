@@ -1,9 +1,16 @@
 import { CURRENCIES } from '@/constants/currencies'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.tz.setDefault('Europe/Kyiv')
 
 /**
- * @param {number} amount 
- * @param {string} currency 
- * @returns {string} 
+ * @param {number} amount
+ * @param {string} currency
+ * @returns {string}
  */
 
 export const formatCurrency = (amount, currency = CURRENCIES.UAH) => {
@@ -18,18 +25,12 @@ export const formatCurrency = (amount, currency = CURRENCIES.UAH) => {
 }
 
 /**
- * @param {string|Date} dateString 
- * @returns {string} 
+ * @param {string|Date} dateString
+ * @param {string} format
+ * @returns {string}
  */
-export const formatDate = (dateString) => {
+export const formatDate = (dateString, format = 'DD.MM.YYYY HH:mm') => {
   if (!dateString) return ''
 
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat('uk-UA', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
+  return dayjs.utc(dateString).tz('Europe/Kyiv').format(format)
 }

@@ -36,7 +36,8 @@ import { ref } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
-// import api from '@/api/axios' 
+import api from '@/api/axios'
+import { useCartStore } from '@/stores/pos' 
 
 defineProps({
   isOpen: Boolean
@@ -44,6 +45,7 @@ defineProps({
 
 const emit = defineEmits(['close'])
 
+const cartStore = useCartStore()
 const orderIdToReturn = ref('')
 const isLoading = ref(false)
 
@@ -55,22 +57,34 @@ const closeModal = () => {
 const processReturn = async () => {
   if (!orderIdToReturn.value) return
 
+  if (!cartStore.activeCashbox) {
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Оберіть робочу касу для проведення повернення!', type: 'warning' }
+    }))
+    return
+  }
+
   isLoading.value = true
   try {
-    // ТУТ БУДЕ РЕАЛЬНИЙ ЗАПИТ НА БЕКЕНД
-    console.log('Готуємо запит на повернення для замовлення ID:', orderIdToReturn.value)
+    const payload = {
+      cash_register: cartStore.activeCashbox.id,
+      currency: cartStore.currency
+    }
 
-    await new Promise(resolve => setTimeout(resolve, 800))
+    await api.post(`/orders/${orderIdToReturn.value}/refund/`, payload)
 
     window.dispatchEvent(new CustomEvent('app-success', {
       detail: { message: `Повернення по чеку #${orderIdToReturn.value} успішно проведено!`, type: 'success' }
     }))
 
+    await cartStore.fetchProducts()
+
     closeModal()
   } catch (error) {
-    console.error(error)
+    console.error('Помилка повернення:', error)
+    const errorMsg = error.response?.data?.detail || 'Не вдалося оформити повернення. Перевірте номер.'
     window.dispatchEvent(new CustomEvent('api-error', {
-      detail: { message: 'Не вдалося оформити повернення. Перевірте номер.', type: 'error' }
+      detail: { message: errorMsg, type: 'error' }
     }))
   } finally {
     isLoading.value = false
