@@ -64,15 +64,17 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useRepairsStore } from '@/stores/repairs' // ПІДКЛЮЧАЄМО СТОР СЮДИ
 
 const authStore = useAuthStore()
+const repairsStore = useRepairsStore()
 
-
+// Стан меню профілю
 const isMenuOpen = ref(false)
 const toggleMenu = () => { isMenuOpen.value = !isMenuOpen.value }
 const closeMenu = () => { setTimeout(() => { isMenuOpen.value = false }, 150) }
 
-
+// Стан меню кас
 const isStoreMenuOpen = ref(false)
 const stores = [
   { value: 'all', label: 'Загальне' },
@@ -80,7 +82,12 @@ const stores = [
   { value: '2', label: 'Каса 2' },
   { value: '3', label: 'Каса 3' }
 ]
-const selectedStore = ref(stores[0]) 
+
+// Розумний computed, який синхронізує локальний вибір із Pinia-стором
+const selectedStore = computed(() => {
+  const currentLabel = repairsStore.selectedCashRegister || 'Загальне'
+  return stores.find(s => s.label === currentLabel) || stores[0]
+})
 
 const toggleStoreMenu = () => {
   isStoreMenuOpen.value = !isStoreMenuOpen.value
@@ -88,8 +95,10 @@ const toggleStoreMenu = () => {
 const closeStoreMenu = () => {
   setTimeout(() => { isStoreMenuOpen.value = false }, 150)
 }
+
+// ТЕПЕР МИ РЕАЛЬНО ПЕРЕЗАПИСУЄМО ДАНІ В СТОРІ ПРИ КЛІКУ
 const selectStore = (store) => {
-  selectedStore.value = store
+  repairsStore.selectedCashRegister = store.label // Записуємо "Каса 1", "Каса 2" або "Загальне"
   isStoreMenuOpen.value = false
 }
 
@@ -98,11 +107,11 @@ const handleLogout = () => {
   authStore.logout()
 }
 
-
+// Дані юзера
 const userName = computed(() => authStore.user?.name || 'Гість')
 const userInitial = computed(() => userName.value.charAt(0).toUpperCase())
 const userRoleLabel = computed(() => {
-  if (authStore.user?.role === 'admin') return 'Адміністратор '
+  if (authStore.user?.role === 'admin') return 'Адміністратор (Повний доступ)'
   if (authStore.user?.role === 'seller') return 'Продавець (Каса)'
   return 'Адміністратор (Повний доступ)'
 })
@@ -141,7 +150,7 @@ const userRoleLabel = computed(() => {
   font-weight: 600;
 }
 
-
+/* --- ПРЕМІАЛЬНИЙ КАСТОМНИЙ СЕЛЕКТОР --- */
 .global-store-selector {
   display: inline-flex;
   align-items: center;
@@ -185,7 +194,6 @@ const userRoleLabel = computed(() => {
 .dropdown-icon-arrow.rotated {
   transform: rotate(180deg);
 }
-
 
 .store-dropdown-menu {
   position: absolute;
@@ -235,7 +243,7 @@ const userRoleLabel = computed(() => {
   color: #2563eb;
 }
 
-
+/* --- БЛОК ПРОФІЛЮ КОРИСТУВАЧА --- */
 .profile-wrapper {
   position: relative;
   cursor: pointer;
@@ -332,7 +340,6 @@ const userRoleLabel = computed(() => {
 .logout-btn:hover {
   background-color: #fef2f2;
 }
-
 
 .dropdown-enter-active,
 .dropdown-leave-active {
