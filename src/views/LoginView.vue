@@ -13,7 +13,7 @@
           label="Логін"
           v-model="username"
           type="text"
-          placeholder="admin або seller"
+          placeholder="Логін"
           required
         />
 
@@ -21,7 +21,7 @@
           label="Пароль"
           v-model="password"
           type="password"
-          placeholder="1234"
+          placeholder="********"
           required
         />
 
@@ -38,12 +38,6 @@
           {{ authStore.isLoading ? 'Перевірка...' : 'Увійти' }}
         </BaseButton>
       </form>
-
-      <div class="test-hints">
-        <small><strong>Тестові доступи:</strong><br>
-        Адмін: admin / 1234<br>
-        Продавець: seller / 1234</small>
-      </div>
     </main>
   </div>
 </template>
@@ -99,7 +93,7 @@ const handleSubmit = () => {
 .logo-box {
   display: flex;
   justify-content: center;
-  margin-bottom: 4px; 
+  margin-bottom: 4px;
 }
 
 .login-header h1 {
@@ -136,14 +130,5 @@ const handleSubmit = () => {
   padding: 8px;
   border-radius: 6px;
   border: 1px solid #fecaca;
-}
-
-.test-hints {
-  margin-top: 24px;
-  text-align: center;
-  color: #94a3b8;
-  font-size: 0.85rem;
-  border-top: 1px dashed #e2e8f0;
-  padding-top: 16px;
 }
 </style>

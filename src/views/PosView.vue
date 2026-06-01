@@ -10,9 +10,18 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
+import { useCartStore } from '@/stores/pos'
 import PosToolbar from '@/components/pos/PosToolbar.vue'
 import PosCatalog from '@/components/pos/PosCatalog.vue'
 import PosCart from '@/components/pos/PosCart.vue'
+
+const cartStore = useCartStore()
+
+onMounted(() => {
+  cartStore.fetchCashboxes()
+  cartStore.fetchProducts()
+})
 </script>
 
 <style scoped>
