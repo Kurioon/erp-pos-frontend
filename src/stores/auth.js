@@ -1,35 +1,31 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { USER_ROLES } from '@/constants/roles' 
+import { USER_ROLES } from '@/constants/roles'
+import api from '@/api/axios'
 
 export const useAuthStore = defineStore('auth', () => {
   const router = useRouter()
 
   const token = ref(localStorage.getItem('token') || null)
+  const refreshToken = ref(localStorage.getItem('refreshToken') || null) 
   const user = ref(JSON.parse(localStorage.getItem('user')) || null)
   const isLoading = ref(false)
   const errorMessage = ref('')
 
-  const login = async (username, password) => {
+  const login = async (email, password) => {
     isLoading.value = true
     errorMessage.value = ''
 
-    // ІМІТАЦІЯ ЗАПИТУ НА БЕКЕНД (Заглушка для тестування ролей)
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
     try {
-      if (username === 'admin' && password === '1234') {
-        token.value = 'mock-jwt-token-admin'
-        user.value = { id: 1, name: 'Керівник', role: USER_ROLES.ADMIN }
-      } else if (username === 'seller' && password === '1234') {
-        token.value = 'mock-jwt-token-seller'
-        user.value = { id: 2, name: 'Касир', role: USER_ROLES.SELLER }
-      } else {
-        throw new Error('Невірний логін або пароль')
-      }
+      const response = await api.post('/auth/login/', { email, password })
+
+      token.value = response.data.access_token
+      refreshToken.value = response.data.refresh_token
+      user.value = response.data.user
 
       localStorage.setItem('token', token.value)
+      localStorage.setItem('refreshToken', refreshToken.value)
       localStorage.setItem('user', JSON.stringify(user.value))
 
       if (user.value.role === USER_ROLES.ADMIN) {
@@ -38,7 +34,8 @@ export const useAuthStore = defineStore('auth', () => {
         router.push('/pos')
       }
     } catch (error) {
-      errorMessage.value = error.message
+      errorMessage.value =
+        error.response?.data?.message || 'Помилка авторизації. Перевірте логін та пароль.'
     } finally {
       isLoading.value = false
     }
@@ -46,11 +43,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   const logout = () => {
     token.value = null
+    refreshToken.value = null
     user.value = null
     localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
     router.push('/login')
   }
 
-  return { token, user, isLoading, errorMessage, login, logout }
+  return { token, refreshToken, user, isLoading, errorMessage, login, logout }
 })

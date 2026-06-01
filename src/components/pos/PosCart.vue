@@ -59,11 +59,11 @@
 
       <transition name="expand">
         <div v-if="paymentType === 'partial'" class="partial-payment-section">
-          <BaseInput
+         <BaseInput
             label="Сума передоплати (₴):"
             type="text"
             inputmode="numeric"
-            :model-value="cartStore.prepayAmount === 0 ? '' : cartStore.prepayAmount"
+            :model-value="cartStore.prepayAmount === 0 ? '' : String(cartStore.prepayAmount)"
             @update:model-value="handlePrepayInput"
             @keydown="preventNonDigits"
             @keydown.enter="handleEnterPress"
@@ -100,19 +100,31 @@
       </BaseButton>
     </div>
   </section>
+  <ReceiptModal
+      :is-open="showReceiptModal"
+      :order-data="lastCompletedOrder"
+      :cashbox-name="cartStore.activeCashbox?.name"
+      :currency="cartStore.currency"
+      @close="showReceiptModal = false"
+    />
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useCartStore } from '@/stores/pos'
 import { formatCurrency } from '@/utils/formatters'
+import api from '@/api/axios'
+
+import ReceiptModal from '@/components/pos/ReceiptModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import IconReceipt from '@/components/icons/IconReceipt.vue'
 
 const cartStore = useCartStore()
-
 const paymentType = ref('full')
+const isSubmitting = ref(false)
+const showReceiptModal = ref(false)
+const lastCompletedOrder = ref(null)
 
 const setPaymentType = (type) => {
   paymentType.value = type
@@ -140,17 +152,37 @@ const isPrepayInvalid = computed(() => {
   return paymentType.value === 'partial' && cartStore.prepayAmount > cartStore.totalAmount
 })
 
-const handleCheckout = () => {
-  if (cartStore.items.length === 0 || isPrepayInvalid.value) return
+const handleCheckout = async () => {
+  if (cartStore.items.length === 0 || isPrepayInvalid.value || isSubmitting.value) return
 
-  console.log('Відправляємо на сервер (Payload):', cartStore.getOrderPayload())
+  isSubmitting.value = true
+  try {
+    const payload = cartStore.getOrderPayload()
 
-  window.dispatchEvent(new CustomEvent('app-success', {
-    detail: { message: 'Замовлення успішно оформлено!', type: 'success' }
-  }))
+    await api.post('/orders/', payload)
 
-  cartStore.clearCart()
-  paymentType.value = 'full'
+    lastCompletedOrder.value = {
+      items: [...cartStore.items],
+      totalAmount: cartStore.totalAmount,
+      prepayAmount: cartStore.prepayAmount,
+      debtAmount: cartStore.balanceDue,
+      commentTtn: cartStore.commentTtn
+    }
+
+    showReceiptModal.value = true
+
+    cartStore.clearCart()
+    paymentType.value = 'full'
+    await cartStore.fetchProducts()
+
+  } catch (error) {
+    console.error('Помилка оформлення:', error)
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Не вдалося створити замовлення', type: 'error' }
+    }))
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 const handleEnterPress = () => {

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import api from '@/api/axios'
 
 export const useCartStore = defineStore('pos', () => {
   const items = ref([])
@@ -7,11 +8,10 @@ export const useCartStore = defineStore('pos', () => {
   const commentTtn = ref('')
   const currency = ref('UAH')
 
-  const availableCashboxes = ref([
-    { id: 1, name: 'Каса №1 (Головна)', currency: 'UAH' },
-    { id: 2, name: 'Каса №2 (Долар)', currency: 'USD' },
-  ])
-  const activeCashbox = ref(availableCashboxes.value[0])
+  const availableCashboxes = ref([])
+  const activeCashbox = ref(null)
+  const products = ref([])
+  const isLoading = ref(false)
 
   const totalAmount = computed(() => {
     return items.value.reduce((sum, item) => sum + item.price * item.qty, 0)
@@ -28,11 +28,64 @@ export const useCartStore = defineStore('pos', () => {
     return 'pending'
   })
 
-  const addItem = (product) => {
-    if (product.stock === 0) {
+  const fetchCashboxes = async () => {
+    try {
+      const response = await api.get('/cash-registers/')
+      availableCashboxes.value = response.data.results || []
+
+      if (availableCashboxes.value.length > 0 && !activeCashbox.value) {
+        activeCashbox.value = availableCashboxes.value[0]
+      }
+    } catch (error) {
+      console.error('Помилка завантаження кас:', error)
       window.dispatchEvent(
         new CustomEvent('api-error', {
-          detail: { message: `Товар "${product.title}" закінчився на складі!`, type: 'warning' },
+          detail: { message: 'Не вдалося завантажити список кас', type: 'error' },
+        }),
+      )
+    }
+  }
+
+  const fetchProducts = async (page = 1) => {
+    isLoading.value = true
+    try {
+      const [productsResponse, stocksResponse] = await Promise.all([
+        api.get(`/products/?page=${page}`),
+        api.get('/warehouse-stocks/'),
+      ])
+
+      const fetchedProducts = productsResponse.data.results || []
+      const stocksData = stocksResponse.data.results || []
+
+      products.value = fetchedProducts.map((product) => {
+        const productStocks = stocksData.filter((s) => s.nomenclature === product.id)
+
+        const totalStock = productStocks.reduce((sum, stockRecord) => sum + stockRecord.quantity, 0)
+
+        return {
+          ...product,
+          stock: totalStock,
+        }
+      })
+    } catch (error) {
+      console.error('Помилка завантаження каталогу:', error)
+      window.dispatchEvent(
+        new CustomEvent('api-error', {
+          detail: { message: 'Помилка завантаження товарів', type: 'error' },
+        }),
+      )
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const addItem = (product) => {
+    const stock = product.stock
+
+    if (stock <= 0) {
+      window.dispatchEvent(
+        new CustomEvent('api-error', {
+          detail: { message: `Товар "${product.name}" закінчився на складі!`, type: 'error' },
         }),
       )
       return
@@ -40,25 +93,22 @@ export const useCartStore = defineStore('pos', () => {
 
     const existing = items.value.find((i) => i.id === product.id)
     if (existing) {
-      if (existing.qty < existing.stock) {
+      if (existing.qty < stock) {
         existing.qty += 1
       } else {
         window.dispatchEvent(
           new CustomEvent('api-error', {
-            detail: {
-              message: `Максимальна доступна кількість: ${existing.stock} шт.`,
-              type: 'warning',
-            },
+            detail: { message: `Максимальна доступна кількість: ${stock} шт.`, type: 'warning' },
           }),
         )
       }
     } else {
       items.value.push({
         id: product.id,
-        title: product.title,
-        price: product.retail_price,
+        title: product.name,
+        price: Number(product.sale_price),
         qty: 1,
-        stock: product.stock,
+        stock: stock,
       })
     }
   }
@@ -96,25 +146,36 @@ export const useCartStore = defineStore('pos', () => {
     commentTtn.value = ''
   }
 
-  const getOrderPayload = () => ({
-    items: items.value.map((i) => ({ id: i.id, qty: i.qty })),
-    prepay_amount: prepayAmount.value,
-    debt_amount: balanceDue.value,
-    status: orderStatus.value,
-    comment_ttn: commentTtn.value,
-    cashbox_id: activeCashbox.value.id,
-  })
+const getOrderPayload = () => ({
+    items: items.value.map((i) => ({
+    product: i.id,
+    quantity: i.qty,
+  })),
+
+  total_amount: totalAmount.value,
+  order_type: 'retail',
+
+  prepay_amount: prepayAmount.value,
+  balance_due: balanceDue.value,
+  status: orderStatus.value,
+  comment_ttn: commentTtn.value,
+  cash_register: activeCashbox.value?.id || null,
+})
 
   return {
     items,
     prepayAmount,
     commentTtn,
     currency,
-    availableCashboxes, 
+    availableCashboxes,
     activeCashbox,
+    products,
+    isLoading,
     totalAmount,
     balanceDue,
     orderStatus,
+    fetchCashboxes,
+    fetchProducts,
     addItem,
     removeItem,
     updateItemQuantity,

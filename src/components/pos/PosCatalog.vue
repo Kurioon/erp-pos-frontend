@@ -13,7 +13,11 @@
       </button>
     </div>
 
-    <div class="products-grid">
+    <div v-if="cartStore.isLoading" class="loading-state">
+      Завантаження товарів...
+    </div>
+
+    <div v-else class="products-grid">
       <div
         v-for="product in filteredProducts"
         :key="product.id"
@@ -25,10 +29,10 @@
         @keydown.enter.prevent="handleAdd(product)"
         @keydown.space.prevent="handleAdd(product)"
       >
-        <h3 class="product-title">{{ product.title }}</h3>
+        <h3 class="product-title">{{ product.name }}</h3>
 
         <div class="product-footer">
-          <span class="price">{{ formatCurrency(product.retail_price) }}</span>
+          <span class="price">{{ formatCurrency(product.sale_price) }}</span>
           <span :class="['stock-badge', { 'stock-empty': product.stock === 0 }]">
             {{ product.stock }} шт
           </span>
@@ -46,28 +50,17 @@ import { formatCurrency } from '@/utils/formatters'
 const cartStore = useCartStore()
 const searchQuery = ref('')
 
-// Мокові дані
-const mockProducts = ref([
-  { id: 1, title: 'Захисне скло iPhone 13', retail_price: 300, stock: 12 },
-  { id: 2, title: 'Кабель Type-C (Оригінал)', retail_price: 500, stock: 8 },
-  { id: 3, title: 'Чохол Silicone Case', retail_price: 450, stock: 0 },
-  { id: 4, title: 'PowerBank Baseus 10000mAh', retail_price: 1200, stock: 6 }
-])
-
 const filteredProducts = computed(() => {
-  if (!searchQuery.value) return mockProducts.value
-  return mockProducts.value.filter(p =>
-    p.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+  if (!searchQuery.value) return cartStore.products 
+  return cartStore.products.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    (p.barcode && p.barcode.includes(searchQuery.value))
   )
 })
 
 const handleAdd = (product) => {
   if (product.stock > 0) {
     cartStore.addItem(product)
-  } else {
-    window.dispatchEvent(new CustomEvent('api-error', {
-      detail: { message: `Товар "${product.title}" закінчився!`, type: 'warning' }
-    }))
   }
 }
 
