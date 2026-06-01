@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from 'axios'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
@@ -15,6 +15,7 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    // config.headers['X-Timezone'] = 'Europe/Kyiv'
     return config
   },
   (error) => Promise.reject(error),
@@ -22,28 +23,44 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config
+
     if (error.response) {
       const { status, data } = error.response
 
-      switch (status) {
-        case 401:
-          localStorage.removeItem('token')
-          console.error('Помилка 401: Авторизація застаріла')
+      if (status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true
+        const refreshToken = localStorage.getItem('refreshToken')
 
-          window.dispatchEvent(
-            new CustomEvent('api-error', {
-              detail: {
-                message: 'Час сесії вичерпано. Будь ласка, увійдіть знову.',
-                type: 'error',
+        if (refreshToken) {
+          try {
+            const response = await axios.post(
+              `${import.meta.env.VITE_API_URL}/auth/token/refresh/`,
+              {
+                refresh: refreshToken,
               },
-            }),
-          )
-          // window.location.href = '/login'
-          break
+            )
 
+            const newAccessToken = response.data.access || response.data.access_token
+
+            localStorage.setItem('token', newAccessToken)
+
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+            return api(originalRequest)
+          } catch (refreshError) {
+            localStorage.removeItem('token')
+            localStorage.removeItem('refreshToken')
+            localStorage.removeItem('user')
+            window.location.href = '/login'
+            return Promise.reject(refreshError)
+          }
+        }
+      }
+
+      switch (status) {
         case 422:
-          console.error('Помилка 422: Помилка валідації даних з сервера', data)
+          console.error('Помилка валідації:', data)
           window.dispatchEvent(
             new CustomEvent('api-error', {
               detail: {
@@ -55,28 +72,19 @@ api.interceptors.response.use(
           break
 
         case 500:
-          console.error('Помилка 500: Внутрішня помилка сервера')
+          console.error('Помилка сервера')
           window.dispatchEvent(
             new CustomEvent('api-error', {
-              detail: {
-                message: 'Помилка сервера. Спробуйте пізніше або зверніться до адміністратора.',
-                type: 'error',
-              },
+              detail: { message: 'Помилка сервера. Спробуйте пізніше.', type: 'error' },
             }),
           )
           break
 
-        default:
-          console.error(`Помилка сервісу [Статус ${status}]:`, data)
       }
     } else {
-      console.error('Мережева помилка або сервер недоступний')
       window.dispatchEvent(
         new CustomEvent('api-error', {
-          detail: {
-            message: "Немає зв'язку з сервером. Перевірте підключення до інтернету.",
-            type: 'error',
-          },
+          detail: { message: "Немає зв'язку з сервером.", type: 'error' },
         }),
       )
     }
