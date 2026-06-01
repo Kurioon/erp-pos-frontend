@@ -6,6 +6,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
+    'X-Timezone': 'Europe/Kyiv',
   },
 })
 
@@ -15,7 +16,6 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    // config.headers['X-Timezone'] = 'Europe/Kyiv'
     return config
   },
   (error) => Promise.reject(error),

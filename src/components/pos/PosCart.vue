@@ -155,22 +155,41 @@ const isPrepayInvalid = computed(() => {
 const handleCheckout = async () => {
   if (cartStore.items.length === 0 || isPrepayInvalid.value || isSubmitting.value) return
 
+  if (!cartStore.activeCashbox) {
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Оберіть робочу касу для проведення оплати!', type: 'warning' }
+    }))
+    return
+  }
+
   isSubmitting.value = true
   try {
-    const payload = cartStore.getOrderPayload()
+    if (paymentType.value === 'full') {
+      cartStore.prepayAmount = cartStore.totalAmount
+    }
 
-    await api.post('/orders/', payload)
+    const payload = cartStore.getOrderPayload()
+    const response = await api.post('/orders/', payload)
+    const newOrderId = response.data.id
+
+    if (cartStore.prepayAmount > 0) {
+      await api.post(`/orders/${newOrderId}/prepay/`, {
+        amount: cartStore.prepayAmount.toString(),
+        cash_register: cartStore.activeCashbox.id,
+        currency: cartStore.currency
+      })
+    }
 
     lastCompletedOrder.value = {
+      id: newOrderId,
       items: [...cartStore.items],
       totalAmount: cartStore.totalAmount,
       prepayAmount: cartStore.prepayAmount,
-      debtAmount: cartStore.balanceDue,
+      debtAmount: paymentType.value === 'full' ? 0 : cartStore.balanceDue,
       commentTtn: cartStore.commentTtn
     }
 
     showReceiptModal.value = true
-
     cartStore.clearCart()
     paymentType.value = 'full'
     await cartStore.fetchProducts()
@@ -178,7 +197,7 @@ const handleCheckout = async () => {
   } catch (error) {
     console.error('Помилка оформлення:', error)
     window.dispatchEvent(new CustomEvent('api-error', {
-      detail: { message: 'Не вдалося створити замовлення', type: 'error' }
+      detail: { message: 'Не вдалося створити замовлення або провести оплату', type: 'error' }
     }))
   } finally {
     isSubmitting.value = false
