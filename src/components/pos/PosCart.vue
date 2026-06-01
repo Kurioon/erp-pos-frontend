@@ -157,11 +157,16 @@ const handleCheckout = async () => {
 
   isSubmitting.value = true
   try {
+    if (paymentType.value === 'full') {
+      cartStore.prepayAmount = cartStore.totalAmount
+    }
+
     const payload = cartStore.getOrderPayload()
 
-    await api.post('/orders/', payload)
+    const response = await api.post('/orders/', payload)
 
     lastCompletedOrder.value = {
+      id: response.data.id,
       items: [...cartStore.items],
       totalAmount: cartStore.totalAmount,
       prepayAmount: cartStore.prepayAmount,
