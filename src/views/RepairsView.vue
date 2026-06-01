@@ -4,57 +4,77 @@ import { useRepairsStore } from '@/stores/repairs'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import RepairCard from '@/components/repairs/RepairCard.vue'
 import RepairFormModal from '@/components/repairs/RepairFormModal.vue'
-import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
+
+// ІМПОРТ КОНСТАНТ (Архітектурна база від Брили)
+import { REPAIR_STATUSES, REPAIR_STATUS_LABELS, REPAIR_STATUS_CLASSES } from '@/constants/repairs'
 
 const repairsStore = useRepairsStore()
 const viewMode = ref('kanban')
-const isModalOpen = ref(false) // Керує видимістю модалки
+const isModalOpen = ref(false) 
 
-// Функція, яка приймає дані з форми і створює ремонт
-// Функція, яка приймає дані з форми і створює ремонт
+// Стан відображення архіву в колонці "Видано"
+const showFullArchive = ref(false)
+
 const handleAddRepair = (formData) => {
   console.log('Сабміт форми пішов! Дані:', formData)
-
   const newId = repairsStore.jobs.length ? Math.max(...repairsStore.jobs.map(j => j.id)) + 1 : 1
   
   const newRepair = {
     id: newId,
     ...formData,
-    status: 'прийнято', // Падає у першу колонку
+    status: REPAIR_STATUSES.PENDING,
     created_at: new Date().toISOString()
   }
-  
-  // ЗАЛІЗНИЙ ФІКС: Створюємо новий масив, щоб Vue гарантовано побачив зміни і перемалював інтерфейс
   repairsStore.jobs = [newRepair, ...repairsStore.jobs] 
-  
-  isModalOpen.value = false // Закриваємо модалку
-  console.log(' Ремонт успішно додано. Поточні ремонти:', repairsStore.jobs)
+  isModalOpen.value = false
 }
 
-// Дані для Канбан-дошки
-const pendingJobs = computed(() => repairsStore.jobs.filter(j => j.status === 'прийнято'))
-const waitingJobs = computed(() => repairsStore.jobs.filter(j => j.status.includes('очікує')))
-const completedJobs = computed(() => repairsStore.jobs.filter(j => j.status === 'відремонтовано'))
-const deliveredJobs = computed(() => repairsStore.jobs.filter(j => j.status === 'видано'))
+// --- ЛОГІКА HTML5 DRAG AND DROP ---
+const handleDragStart = (event, jobId) => {
+  event.dataTransfer.setData('text/plain', jobId)
+  event.dataTransfer.effectAllowed = 'move'
+}
+
+const handleDrop = (event, newStatus) => {
+  const jobId = parseInt(event.dataTransfer.getData('text/plain'), 10)
+  const job = repairsStore.jobs.find(j => j.id === jobId)
+  if (job) {
+    job.status = newStatus
+  }
+}
+
+// Фільтрація карток для Канбану за константами
+const pendingJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.PENDING))
+const waitingJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.WAITING_PARTS))
+const completedJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.REPAIRED))
+
+// Розумне обмеження колонки "Видано" (Показуємо максимум 5 свіжих, або все, якщо відкритий архів)
+const deliveredJobs = computed(() => {
+  const allDelivered = repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.DELIVERED)
+  if (showFullArchive.value) {
+    return allDelivered
+  }
+  return allDelivered.slice(0, 5)
+})
+
+// Лічильник схованих в архів карток
+const archivedCount = computed(() => {
+  const totalDelivered = repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.DELIVERED).length
+  return totalDelivered > 5 ? totalDelivered - 5 : 0
+})
 
 const totalJobs = computed(() => repairsStore.jobs.length)
 const activeJobs = computed(() => pendingJobs.value.length + waitingJobs.value.length)
 
-// Робить першу літеру великою (прийнято -> Прийнято)
+// Форматування через об'єкти констант
 const formatStatus = (status) => {
-  if (!status) return ''
-  return status.charAt(0).toUpperCase() + status.slice(1)
+  return REPAIR_STATUS_LABELS[status] || status
 }
 
-// Повертає правильний CSS клас для статусу
 const getTableStatusClass = (status) => {
-  const s = status.toLowerCase()
-  if (s.includes('прийнято')) return 'status-pending'
-  if (s.includes('очікує')) return 'status-waiting'
-  if (s.includes('відремонтовано')) return 'status-completed'
-  return 'status-pending'
+  return REPAIR_STATUS_CLASSES[status] || 'status-pending'
 }
-// Функція для красивого виводу дати і часу
+
 const formatDateTime = (isoString) => {
   if (!isoString) return ''
   const date = new Date(isoString)
@@ -95,51 +115,107 @@ const formatDateTime = (isoString) => {
         </div>
         <BaseButton @click="isModalOpen = true">+ Новий ремонт</BaseButton>
         <RepairFormModal 
-      v-if="isModalOpen" 
-      @close="isModalOpen = false" 
-      @submit="handleAddRepair" 
-    />
+          v-if="isModalOpen" 
+          @close="isModalOpen = false" 
+          @submit="handleAddRepair" 
+        />
       </div>
     </header>
 
     <main v-if="viewMode === 'kanban'" class="kanban-board">
-      <div class="kanban-column col-pending">
+      
+      <div 
+        class="kanban-column col-pending"
+        @dragover.prevent
+        @drop="handleDrop($event, REPAIR_STATUSES.PENDING)"
+      >
         <div class="column-header">
           <h2 class="column-title">Прийнято</h2>
           <span class="counter">{{ pendingJobs.length }}</span>
         </div>
         <div class="kanban-cards">
-          <RepairCard v-for="item in pendingJobs" :key="item.id" :job="item" />
+          <div 
+            v-for="item in pendingJobs" 
+            :key="item.id"
+            class="draggable-card-wrapper"
+            draggable="true"
+            @dragstart="handleDragStart($event, item.id)"
+          >
+            <RepairCard :job="item" />
+          </div>
         </div>
       </div>
 
-      <div class="kanban-column col-waiting">
+      <div 
+        class="kanban-column col-waiting"
+        @dragover.prevent
+        @drop="handleDrop($event, REPAIR_STATUSES.WAITING_PARTS)"
+      >
         <div class="column-header">
           <h2 class="column-title">Очікування запчастин</h2>
           <span class="counter">{{ waitingJobs.length }}</span>
         </div>
         <div class="kanban-cards">
-          <RepairCard v-for="item in waitingJobs" :key="item.id" :job="item" />
+          <div 
+            v-for="item in waitingJobs" 
+            :key="item.id"
+            class="draggable-card-wrapper"
+            draggable="true"
+            @dragstart="handleDragStart($event, item.id)"
+          >
+            <RepairCard :job="item" />
+          </div>
         </div>
       </div>
 
-      <div class="kanban-column col-completed">
+      <div 
+        class="kanban-column col-completed"
+        @dragover.prevent
+        @drop="handleDrop($event, REPAIR_STATUSES.REPAIRED)"
+      >
         <div class="column-header">
           <h2 class="column-title">Відремонтовано</h2>
           <span class="counter">{{ completedJobs.length }}</span>
         </div>
         <div class="kanban-cards">
-          <RepairCard v-for="item in completedJobs" :key="item.id" :job="item" />
+          <div 
+            v-for="item in completedJobs" 
+            :key="item.id"
+            class="draggable-card-wrapper"
+            draggable="true"
+            @dragstart="handleDragStart($event, item.id)"
+          >
+            <RepairCard :job="item" />
+          </div>
         </div>
       </div>
 
-      <div class="kanban-column col-delivered">
+      <div 
+        class="kanban-column col-delivered"
+        @dragover.prevent
+        @drop="handleDrop($event, REPAIR_STATUSES.DELIVERED)"
+      >
         <div class="column-header">
           <h2 class="column-title">Видано</h2>
-          <span class="counter">{{ deliveredJobs.length }}</span>
+          <span class="counter">{{ repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.DELIVERED).length }}</span>
         </div>
         <div class="kanban-cards">
-          <RepairCard v-for="item in deliveredJobs" :key="item.id" :job="item" />
+          <div 
+            v-for="item in deliveredJobs" 
+            :key="item.id"
+            class="draggable-card-wrapper"
+            draggable="true"
+            @dragstart="handleDragStart($event, item.id)"
+          >
+            <RepairCard :job="item" />
+          </div>
+
+          <div v-if="archivedCount > 0 || showFullArchive" class="archive-zone">
+            <button class="archive-toggle-btn" @click="showFullArchive = !showFullArchive">
+              <span v-if="!showFullArchive">▼ Показати архів (+{{ archivedCount }})</span>
+              <span v-else>▲ Сховати архівні</span>
+            </button>
+          </div>
         </div>
       </div>
     </main>
@@ -154,7 +230,8 @@ const formatDateTime = (isoString) => {
             <th>НЕСПРАВНІСТЬ</th>
             <th>КОМІРКА</th>
             <th>СТАТУС</th>
-            <th>ОЦІНКА</th> <th>ДАТА</th>
+            <th>ОЦІНКА</th> 
+            <th>ДАТА</th>
           </tr>
         </thead>
         <tbody>
@@ -169,7 +246,6 @@ const formatDateTime = (isoString) => {
                 {{ job.storage_cell }}
               </span>
             </td>
-            
             <td>
               <span class="table-status" :class="getTableStatusClass(job.status)">
                 {{ formatStatus(job.status) }}
@@ -206,6 +282,7 @@ const formatDateTime = (isoString) => {
   font-size: 1.5rem;
   color: #0f172a;
   margin: 0 0 4px 0;
+  font-weight: 700;
 }
 
 .subtitle {
@@ -220,7 +297,6 @@ const formatDateTime = (isoString) => {
   gap: 16px;
 }
 
-/* Стилі перемикача */
 .view-toggle {
   display: flex;
   border: 1px solid #cbd5e1;
@@ -245,7 +321,7 @@ const formatDateTime = (isoString) => {
   color: white;
 }
 
-/* Стилі Канбан-дошки */
+/* --- КАНБАН СІТКА --- */
 .kanban-board {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -257,16 +333,18 @@ const formatDateTime = (isoString) => {
 }
 
 .kanban-column {
-  background-color: #ffffff;
+  background-color: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   border-top: 4px solid transparent; 
+  min-width: 260px;
+  min-height: 550px; /* Велика область для зручного Drop */
 }
 
-.col-pending { border-top-color: #334155; }
+.col-pending { border-top-color: #475569; }
 .col-waiting { border-top-color: #f59e0b; }
 .col-completed { border-top-color: #3b82f6; }
 .col-delivered { border-top-color: #10b981; }
@@ -276,30 +354,71 @@ const formatDateTime = (isoString) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  border-bottom: 1px solid #f1f5f9;
   padding-bottom: 12px;
 }
 
 .column-title {
   font-size: 0.95rem;
-  font-weight: 600;
-  color: #1e293b;
+  font-weight: 700;
+  color: #0f172a;
   margin: 0;
 }
 
 .counter {
-  color: #94a3b8;
-  font-size: 0.85rem;
-  font-weight: 500;
+  background-color: #e2e8f0;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .kanban-cards {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
 }
 
-/* Стилі Таблиці */
+.draggable-card-wrapper {
+  cursor: grab;
+  transition: transform 0.15s ease;
+}
+
+.draggable-card-wrapper:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+}
+
+/* --- ЗОНА АРХІВУВАННЯ --- */
+.archive-zone {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+
+.archive-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: center;
+  border: 1px dashed #cbd5e1;
+}
+
+.archive-toggle-btn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+/* --- ТАБЛИЦЯ --- */
 .table-container {
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -350,7 +469,6 @@ const formatDateTime = (isoString) => {
   text-overflow: ellipsis;
 }
 
-/* Ідеальна комірка */
 .storage-pill {
   background-color: #eff6ff; 
   color: #2563eb;
@@ -373,8 +491,8 @@ const formatDateTime = (isoString) => {
 }
 
 .status-pending { 
-  background: #f8fafc; 
-  color: #64748b; 
+  background: #f1f5f9; 
+  color: #475569; 
   border-color: #e2e8f0; 
 }
 
@@ -388,5 +506,11 @@ const formatDateTime = (isoString) => {
   background: #eff6ff; 
   color: #2563eb; 
   border-color: #bfdbfe; 
+}
+
+.status-delivered {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
 }
 </style>
