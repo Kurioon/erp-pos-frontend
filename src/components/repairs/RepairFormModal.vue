@@ -157,7 +157,7 @@ const handleSubmit = () => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.5); /* Трохи темніший фон */
+  background: rgba(15, 23, 42, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -170,9 +170,9 @@ const handleSubmit = () => {
   background: white;
   width: 100%;
   max-width: 460px;
-  border-radius: 16px; /* Більш м'які кути */
+  border-radius: 16px; 
   padding: 28px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05); /* Глибока красива тінь */
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05); 
   animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -188,7 +188,7 @@ const handleSubmit = () => {
   font-size: 1.25rem;
   font-weight: 600;
   color: #0f172a;
-  letter-spacing: -0.025em; /* Більш сучасний типографічний вигляд */
+  letter-spacing: -0.025em; 
 }
 
 .close-btn {
@@ -272,7 +272,7 @@ const handleSubmit = () => {
   border-color: transparent !important;
 }
 
-/* --- СТИЛІ ДЛЯ ПОМИЛОК --- */
+
 .invalid-input {
   background-color: #fef2f2 !important;
   border-color: #ef4444 !important;
