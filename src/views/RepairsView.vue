@@ -11,16 +11,24 @@ const viewMode = ref('kanban')
 const isModalOpen = ref(false) // Керує видимістю модалки
 
 // Функція, яка приймає дані з форми і створює ремонт
+// Функція, яка приймає дані з форми і створює ремонт
 const handleAddRepair = (formData) => {
+  console.log('Сабміт форми пішов! Дані:', formData)
+
   const newId = repairsStore.jobs.length ? Math.max(...repairsStore.jobs.map(j => j.id)) + 1 : 1
+  
   const newRepair = {
     id: newId,
     ...formData,
-    status: 'прийнято', // Всі нові ремонти падають у першу колонку
+    status: 'прийнято', // Падає у першу колонку
     created_at: new Date().toISOString()
   }
-  repairsStore.jobs.push(newRepair) // Додаємо в стор
+  
+  // ЗАЛІЗНИЙ ФІКС: Створюємо новий масив, щоб Vue гарантовано побачив зміни і перемалював інтерфейс
+  repairsStore.jobs = [newRepair, ...repairsStore.jobs] 
+  
   isModalOpen.value = false // Закриваємо модалку
+  console.log(' Ремонт успішно додано. Поточні ремонти:', repairsStore.jobs)
 }
 
 // Дані для Канбан-дошки

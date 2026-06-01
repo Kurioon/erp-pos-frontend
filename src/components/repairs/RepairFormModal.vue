@@ -1,7 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const emit = defineEmits(['close', 'submit'])
+
+const firstInput = ref(null) // Для автофокусу
 
 const formData = ref({
   device_name: '',
@@ -25,6 +27,7 @@ const currentDate = new Date().toLocaleString('uk-UA', {
   minute: '2-digit'
 })
 
+// Валідація
 const validateName = () => {
   if (/[0-9]/.test(formData.value.customer_name)) {
     errors.value.customer_name = 'Ім\'я не може містити цифри'
@@ -50,6 +53,25 @@ const handleSubmit = () => {
   if (hasErrors.value) return
   emit('submit', { ...formData.value })
 }
+
+// Закриття по Esc
+const handleKeydown = (e) => {
+  if (e.key === 'Escape') {
+    emit('close')
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+  // Автоматично ставимо курсор у перше поле при відкритті
+  if (firstInput.value) {
+    firstInput.value.focus()
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
@@ -65,7 +87,13 @@ const handleSubmit = () => {
       <form @submit.prevent="handleSubmit" class="repair-form">
         <div class="form-group">
           <label>Пристрій <span>*</span></label>
-          <input v-model="formData.device_name" type="text" placeholder="iPhone 15, MacBook Pro..." required />
+          <input 
+            ref="firstInput"
+            v-model="formData.device_name" 
+            type="text" 
+            placeholder="iPhone 15, MacBook Pro..." 
+            required 
+          />
         </div>
 
         <div class="form-row">
@@ -207,7 +235,7 @@ const handleSubmit = () => {
 .close-btn:hover {
   background: #e2e8f0;
   color: #0f172a;
-  transform: rotate(90deg); /* Крутий мікроефект при наведенні */
+  transform: rotate(90deg); 
 }
 
 .repair-form {
@@ -237,12 +265,12 @@ const handleSubmit = () => {
 }
 
 .form-group label span {
-  color: #ef4444; /* Зірочка тепер червона, як акцент */
+  color: #ef4444; 
 }
 
 .form-group input {
   padding: 12px 14px;
-  background-color: #f8fafc; /* Легкий сірий фон замість білого */
+  background-color: #f8fafc; 
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   font-size: 0.95rem;
@@ -262,7 +290,7 @@ const handleSubmit = () => {
 .form-group input:focus {
   background-color: #ffffff;
   border-color: #3b82f6;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); /* М'яке синє світіння */
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); 
 }
 
 .readonly-input {
@@ -337,7 +365,6 @@ const handleSubmit = () => {
   transform: translateY(-1px);
 }
 
-/* Ефект реального фізичного натискання */
 .btn-cancel:active, .btn-submit:active:not(:disabled) {
   transform: scale(0.97);
 }
