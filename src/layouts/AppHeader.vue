@@ -1,7 +1,13 @@
 <template>
   <header class="header">
     <div class="header-content">
-      <h2 class="page-title">Робочий простір</h2>
+
+      <div class="left-side-header">
+        <button class="mobile-menu-btn" @click="$emit('toggle-menu')">
+          <IconMenu />
+        </button>
+        <h2 class="page-title">Робочий простір</h2>
+      </div>
 
       <div
         class="profile-wrapper"
@@ -21,12 +27,21 @@
               <span class="info-role">{{ userRoleLabel }}</span>
             </div>
             <div class="menu-divider"></div>
-            <button class="logout-btn" @click.stop="handleLogout">
-              Вийти з системи
-            </button>
+
+            <div class="logout-wrapper">
+              <BaseButton
+                variant="danger"
+                class="w-full"
+                @click.stop="handleLogout"
+              >
+                Вийти з системи
+              </BaseButton>
+            </div>
+
           </div>
         </transition>
       </div>
+
     </div>
   </header>
 </template>
@@ -34,6 +49,12 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import IconMenu from '@/components/icons/IconMenu.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+
+import { USER_ROLE_LABELS } from '@/constants/roles'
+
+defineEmits(['toggle-menu'])
 
 const authStore = useAuthStore()
 const isMenuOpen = ref(false)
@@ -60,9 +81,7 @@ const userInitial = computed(() => {
 })
 
 const userRoleLabel = computed(() => {
-  if (authStore.user?.role === 'admin') return 'Адміністратор (Повний доступ)'
-  if (authStore.user?.role === 'seller') return 'Продавець (Каса)'
-  return 'Невідома роль'
+  return USER_ROLE_LABELS[authStore.user?.role] || 'Невідома роль'
 })
 </script>
 
@@ -84,6 +103,27 @@ const userRoleLabel = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.left-side-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mobile-menu-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: #4b5563;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.mobile-menu-btn:hover {
+  background-color: #f3f4f6;
 }
 
 .page-title {
@@ -173,21 +213,12 @@ const userRoleLabel = computed(() => {
   background-color: #e5e7eb;
 }
 
-.logout-btn {
-  width: 100%;
-  text-align: left;
-  padding: 12px 16px;
-  background: transparent;
-  border: none;
-  color: #ef4444;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
+.logout-wrapper {
+  padding: 8px;
 }
 
-.logout-btn:hover {
-  background-color: #fef2f2;
+.w-full {
+  width: 100%;
 }
 
 .dropdown-enter-active,
@@ -199,5 +230,19 @@ const userRoleLabel = computed(() => {
 .dropdown-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+@media (max-width: 1023px) {
+  .mobile-menu-btn {
+    display: block;
+  }
+
+  .header {
+    padding: 0 16px;
+  }
+
+  .user-name {
+    display: none;
+  }
 }
 </style>
