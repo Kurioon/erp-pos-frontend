@@ -3,21 +3,24 @@
     <section class="management-section">
       <div class="section-header">
         <h2>Активні каси</h2>
-        <BaseButton variant="primary" @click="handleAddCashRegister">
-          + Додати касу
-        </BaseButton>
       </div>
 
-      <div class="registers-grid">
-        <div v-for="reg in financeStore.cashRegisters" :key="reg.id" class="register-card shadow-premium">
+      <div v-if="cartStore.isLoading" class="text-muted">Завантаження кас...</div>
+
+      <div v-else class="registers-grid">
+        <div v-for="reg in cartStore.availableCashboxes" :key="reg.id" class="register-card shadow-premium">
           <div class="card-top-row">
             <span class="register-dot-indicator"></span>
             <span class="register-card-title">{{ reg.name }}</span>
           </div>
           <div class="register-balance-display">
-            <span class="balance-value">{{ formatCurrency(reg.balance, reg.currency) }}</span>
+            <span class="balance-value">{{ formatCurrency(reg.balance || 0, 'UAH') }}</span>
           </div>
           <p class="balance-sub-label">Поточний баланс</p>
+        </div>
+
+        <div v-if="cartStore.availableCashboxes.length === 0" class="text-muted">
+          Каси не знайдені в системі.
         </div>
       </div>
     </section>
@@ -32,31 +35,29 @@
 
       <div class="rates-control-card shadow-premium">
         <div class="rates-inputs-row">
-          
-          <BaseInput 
-            label="UAH (база)" 
-            :modelValue="1.00" 
-            disabled 
+          <BaseInput
+            label="UAH (база)"
+            :modelValue="1.00"
+            disabled
           />
-
-          <BaseInput 
-            label="USD → UAH" 
-            type="number" 
-            step="0.1" 
-            v-model.number="financeStore.currencyRates.usd" 
+          <BaseInput
+            label="USD → UAH"
+            type="number"
+            step="0.1"
+            v-model.number="currencyRates.usd"
           />
-
-          <BaseInput 
-            label="EUR → UAH" 
-            type="number" 
-            step="0.1" 
-            v-model.number="financeStore.currencyRates.eur" 
+          <BaseInput
+            label="EUR → UAH"
+            type="number"
+            step="0.1"
+            v-model.number="currencyRates.eur"
           />
         </div>
 
         <div class="rates-footer-actions">
-          <BaseButton variant="primary" @click="handleSaveRates">
-            Зберегти курси
+          <BaseButton variant="primary" @click="handleSaveRates" :disabled="isSavingRates">
+            <span v-if="isSavingRates">Збереження...</span>
+            <span v-else>Зберегти курси</span>
           </BaseButton>
           <p class="rates-info-subtext">
             Курси використовуються для конвертації при мультивалютних операціях
@@ -68,28 +69,37 @@
 </template>
 
 <script setup>
-import { useFinanceStore } from '@/stores/finance'
-import { CURRENCIES } from '@/constants/currencies'
+import { onMounted, ref } from 'vue'
+import { useCartStore } from '@/stores/pos'
 import { formatCurrency } from '@/utils/formatters'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import IconRefresh from '@/components/icons/IconRefresh.vue'
 
-const financeStore = useFinanceStore()
+const cartStore = useCartStore()
+// Локальний стейт для курсів валют (тимчасово, поки немає API)
+const currencyRates = ref({
+  usd: 40.5,
+  eur: 43.2
+})
+const isSavingRates = ref(false)
+
+onMounted(() => {
+  if (cartStore.availableCashboxes.length === 0) {
+    cartStore.fetchCashboxes()
+  }
+})
 
 const handleSaveRates = () => {
-  console.log('Курси валют успішно оновлено:', financeStore.currencyRates)
-  alert('Курси валют успішно збережено в системі!')
-}
-
-const handleAddCashRegister = () => {
-  const nextId = financeStore.cashRegisters.length + 1
-  financeStore.addCashRegister({
-    id: nextId,
-    name: `Каса ${nextId}`,
-    balance: 0,
-    currency: CURRENCIES.UAH 
-  })
+  isSavingRates.value = true
+  setTimeout(() => {
+    window.dispatchEvent(
+      new CustomEvent('app-success', {
+        detail: { message: 'Курси валют успішно оновлено!', type: 'success' },
+      })
+    )
+    isSavingRates.value = false
+  }, 1000)
 }
 </script>
 
@@ -107,10 +117,12 @@ const handleAddCashRegister = () => {
 .register-balance-display { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
 .balance-value { font-size: 1.65rem; font-weight: 700; color: #0f172a; letter-spacing: -0.02em; }
 .balance-sub-label { margin: 0; font-size: 0.8rem; color: #94a3b8; font-weight: 500; }
+.text-muted { color: #94a3b8; }
+
 .rate-section-spacing { margin-top: 36px; }
 .section-header-simple { margin-bottom: 16px; }
 .header-with-icon { display: flex; align-items: center; gap: 8px; }
-.header-icon { color: #64748b; }
+.header-icon { color: #64748b; width: 20px; height: 20px; }
 .rates-control-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
 .rates-inputs-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px; }
 @media (max-width: 768px) { .rates-inputs-row { grid-template-columns: 1fr; } }

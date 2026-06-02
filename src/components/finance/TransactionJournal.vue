@@ -2,29 +2,54 @@
   <div class="tab-pane">
     <div class="filters-container">
       <div class="filter-group-pills">
-        <BaseButton 
+        <BaseButton
           variant="secondary"
           :class="{ 'active-pill': selectedType === 'all' }"
           @click="selectedType = 'all'"
         >
           Всі
         </BaseButton>
-        <BaseButton 
-          v-for="(label, value) in TRANSACTION_TYPE_LABELS" 
-          :key="value"
+        <BaseButton
           variant="secondary"
-          :class="{ 'active-pill': selectedType === value }"
-          @click="selectedType = value"
+          :class="{ 'active-pill': selectedType === TRANSACTION_TYPES.INCOME }"
+          @click="selectedType = TRANSACTION_TYPES.INCOME"
         >
-          {{ label }}
+          Доходи
+        </BaseButton>
+        <BaseButton
+          variant="secondary"
+          :class="{ 'active-pill': selectedType === TRANSACTION_TYPES.EXPENSE }"
+          @click="selectedType = TRANSACTION_TYPES.EXPENSE"
+        >
+          Витрати
         </BaseButton>
       </div>
-      <span class="active-global-register-badge">
-        Фільтр: {{ repairsStore.selectedCashRegister || 'Загальне' }}
-      </span>
+
+      <div class="right-actions">
+        <div class="cashbox-filter-wrapper">
+          <BaseSelect
+            v-model="selectedCashboxId"
+            :options="cashboxOptions"
+            placeholder="Оберіть касу"
+          />
+        </div>
+
+        <BaseButton
+          variant="primary"
+          @click="financeStore.exportCsv"
+          :disabled="financeStore.isLoading"
+        >
+          <span v-if="financeStore.isLoading">Завантаження...</span>
+          <span v-else>Експорт CSV</span>
+        </BaseButton>
+      </div>
     </div>
 
-    <div class="table-container shadow-premium">
+    <div v-if="financeStore.isLoading && financeStore.transactions.length === 0" class="text-center text-muted empty-table-msg">
+      Завантаження транзакцій...
+    </div>
+
+    <div v-else class="table-container shadow-premium">
       <table class="finance-table">
         <thead>
           <tr>
@@ -37,24 +62,25 @@
         </thead>
         <tbody>
           <tr v-for="tx in filteredTransactions" :key="tx.id" class="table-row-hover">
-            <td class="text-muted font-medium">{{ formatDate(tx.date) }}</td>
-            <td class="font-bold text-dark">{{ tx.register }}</td>
+            <td class="text-muted font-medium">{{ formatDate(tx.timestamp || new Date()) }}</td>
+
+            <td class="font-bold text-dark">{{ getCashboxName(tx.cash_register) }}</td>
             <td>
-              <BaseStatusBadge 
-                :label="TRANSACTION_TYPE_LABELS[tx.type]" 
-                :class="TRANSACTION_TYPE_CLASSES[tx.type]" 
+              <BaseStatusBadge
+                :label="Number(tx.amount) > 0 ? TRANSACTION_TYPE_LABELS[TRANSACTION_TYPES.INCOME] : TRANSACTION_TYPE_LABELS[TRANSACTION_TYPES.EXPENSE]"
+                :class="Number(tx.amount) > 0 ? TRANSACTION_TYPE_CLASSES[TRANSACTION_TYPES.INCOME] : TRANSACTION_TYPE_CLASSES[TRANSACTION_TYPES.EXPENSE]"
               />
             </td>
-            <td class="text-right font-bold text-amount" :class="tx.amount > 0 ? 'amt-positive' : 'amt-negative'">
-              {{ tx.amount > 0 ? '+' : '' }}{{ formatCurrency(tx.amount, tx.currency) }}
+            <td class="text-right font-bold text-amount" :class="Number(tx.amount) > 0 ? 'amt-positive' : 'amt-negative'">
+              {{ Number(tx.amount) > 0 ? '+' : '' }}{{ formatCurrency(tx.amount, tx.currency || 'UAH') }}
             </td>
-            <td class="font-medium" :class="tx.orderId !== '—' ? 'text-order-id' : 'text-muted'">
-              {{ tx.orderId }}
+            <td class="font-medium" :class="tx.order ? 'text-order-id' : 'text-muted'">
+              {{ tx.order || '—' }}
             </td>
           </tr>
           <tr v-if="filteredTransactions.length === 0">
             <td colspan="5" class="text-center text-muted empty-table-msg">
-              Немає транзакцій для каси "{{ repairsStore.selectedCashRegister || 'Загальне' }}"
+              Немає транзакцій за обраними фільтрами
             </td>
           </tr>
         </tbody>
@@ -64,28 +90,56 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useFinanceStore } from '@/stores/finance'
-import { useRepairsStore } from '@/stores/repairs'
-import { TRANSACTION_TYPE_LABELS, TRANSACTION_TYPE_CLASSES } from '@/constants/finance'
-import { formatCurrency, formatDate } from '@/utils/formatters' 
-
+import { useCartStore } from '@/stores/pos'
+import { TRANSACTION_TYPES, TRANSACTION_TYPE_LABELS, TRANSACTION_TYPE_CLASSES } from '@/constants/finance'
+import { formatCurrency, formatDate } from '@/utils/formatters'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
 
 const financeStore = useFinanceStore()
-const repairsStore = useRepairsStore()
+const cartStore = useCartStore()
 
-const selectedType = ref('all') 
+const selectedType = ref('all')
+const selectedCashboxId = ref('all')
+
+onMounted(() => {
+  financeStore.fetchTransactions()
+  if (cartStore.availableCashboxes.length === 0) {
+    cartStore.fetchCashboxes()
+  }
+})
+
+const cashboxOptions = computed(() => {
+  const options = [{ value: 'all', label: 'Всі каси' }]
+  cartStore.availableCashboxes.forEach(box => {
+    options.push({ value: box.id, label: box.name })
+  })
+  return options
+})
+
+const getCashboxName = (id) => {
+  if (!id) return '—'
+  const box = cartStore.availableCashboxes.find(b => b.id === id)
+  return box ? box.name : `Каса #${id}`
+}
 
 const filteredTransactions = computed(() => {
   return financeStore.transactions.filter(t => {
-    const matchesType = selectedType.value === 'all' || t.type === selectedType.value
-    const globalRegister = repairsStore.selectedCashRegister || 'Загальне'
-    const matchesGlobalRegister = globalRegister === 'Загальне' || t.register === globalRegister
-    
-    return matchesType && matchesGlobalRegister
+    let matchesType = true;
+
+    if (selectedType.value === TRANSACTION_TYPES.INCOME) {
+      matchesType = Number(t.amount) > 0;
+    } else if (selectedType.value === TRANSACTION_TYPES.EXPENSE) {
+      matchesType = Number(t.amount) < 0;
+    }
+
+    const matchesCashbox = selectedCashboxId.value === 'all' || String(t.cash_register) === String(selectedCashboxId.value)
+
+    return matchesType && matchesCashbox
   })
 })
 </script>
@@ -94,7 +148,10 @@ const filteredTransactions = computed(() => {
 .filters-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
 .filter-group-pills { display: flex; gap: 8px; }
 .active-pill { background-color: #2563eb !important; color: #ffffff !important; }
-.active-global-register-badge { background-color: #f8fafc; border: 1px solid #e2e8f0; color: #475569; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+
+.right-actions { display: flex; align-items: center; gap: 12px; }
+.cashbox-filter-wrapper { width: 220px; }
+
 .table-container { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: white; }
 .shadow-premium { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 20px 25px -5px rgba(0, 0, 0, 0.03); }
 .finance-table { width: 100%; border-collapse: collapse; }
@@ -103,11 +160,8 @@ const filteredTransactions = computed(() => {
 .table-row-hover:hover { background-color: #f8fafc; transition: background-color 0.15s; }
 .finance-table tr:last-child td { border-bottom: none; }
 
-
-.type-sale { background-color: #dcfce7; color: #166534; }
-.type-return { background-color: #fef2f2; color: #991b1b; }
-.type-income { background-color: #eff6ff; color: #1e40af; }
-.type-expense { background-color: #fff9db; color: #b45309; }
+:deep(.type-income) { background-color: #dcfce7; color: #166534; }
+:deep(.type-expense) { background-color: #fef2f2; color: #991b1b; }
 
 .text-amount { font-size: 1rem; letter-spacing: -0.01em; }
 .amt-positive { color: #166534; }
