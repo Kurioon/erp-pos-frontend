@@ -64,17 +64,17 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useRepairsStore } from '@/stores/repairs' // ПІДКЛЮЧАЄМО СТОР СЮДИ
+import { useRepairsStore } from '@/stores/repairs' 
 
 const authStore = useAuthStore()
 const repairsStore = useRepairsStore()
 
-// Стан меню профілю
+
 const isMenuOpen = ref(false)
 const toggleMenu = () => { isMenuOpen.value = !isMenuOpen.value }
 const closeMenu = () => { setTimeout(() => { isMenuOpen.value = false }, 150) }
 
-// Стан меню кас
+
 const isStoreMenuOpen = ref(false)
 const stores = [
   { value: 'all', label: 'Загальне' },
@@ -83,7 +83,7 @@ const stores = [
   { value: '3', label: 'Каса 3' }
 ]
 
-// Розумний computed, який синхронізує локальний вибір із Pinia-стором
+
 const selectedStore = computed(() => {
   const currentLabel = repairsStore.selectedCashRegister || 'Загальне'
   return stores.find(s => s.label === currentLabel) || stores[0]
@@ -96,9 +96,9 @@ const closeStoreMenu = () => {
   setTimeout(() => { isStoreMenuOpen.value = false }, 150)
 }
 
-// ТЕПЕР МИ РЕАЛЬНО ПЕРЕЗАПИСУЄМО ДАНІ В СТОРІ ПРИ КЛІКУ
+
 const selectStore = (store) => {
-  repairsStore.selectedCashRegister = store.label // Записуємо "Каса 1", "Каса 2" або "Загальне"
+  repairsStore.selectedCashRegister = store.label 
   isStoreMenuOpen.value = false
 }
 
@@ -107,7 +107,7 @@ const handleLogout = () => {
   authStore.logout()
 }
 
-// Дані юзера
+
 const userName = computed(() => authStore.user?.name || 'Гість')
 const userInitial = computed(() => userName.value.charAt(0).toUpperCase())
 const userRoleLabel = computed(() => {
@@ -150,7 +150,7 @@ const userRoleLabel = computed(() => {
   font-weight: 600;
 }
 
-/* --- ПРЕМІАЛЬНИЙ КАСТОМНИЙ СЕЛЕКТОР --- */
+
 .global-store-selector {
   display: inline-flex;
   align-items: center;
@@ -243,7 +243,7 @@ const userRoleLabel = computed(() => {
   color: #2563eb;
 }
 
-/* --- БЛОК ПРОФІЛЮ КОРИСТУВАЧА --- */
+
 .profile-wrapper {
   position: relative;
   cursor: pointer;
