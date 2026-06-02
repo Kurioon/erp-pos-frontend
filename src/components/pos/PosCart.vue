@@ -35,7 +35,8 @@
     <div class="checkout-panel">
       <div class="summary-row total-row">
         <span class="summary-label">Разом</span>
-        <strong>{{ formatCurrency(cartStore.totalAmount, cartStore.currency) }}</strong>      </div>
+        <strong>{{ formatCurrency(cartStore.totalAmount, cartStore.currency) }}</strong>
+      </div>
 
       <div class="input-group">
         <label class="group-label">Тип оплати</label>
@@ -168,17 +169,13 @@ const handleCheckout = async () => {
       cartStore.prepayAmount = cartStore.totalAmount
     }
 
-    const payload = cartStore.getOrderPayload()
+    const payload = {
+      ...cartStore.getOrderPayload(),
+      cash_register: cartStore.activeCashbox.id
+    }
+
     const response = await api.post('/orders/', payload)
     const newOrderId = response.data.id
-
-    if (cartStore.prepayAmount > 0) {
-      await api.post(`/orders/${newOrderId}/prepay/`, {
-        amount: cartStore.prepayAmount.toString(),
-        cash_register: cartStore.activeCashbox.id,
-        currency: cartStore.currency
-      })
-    }
 
     lastCompletedOrder.value = {
       id: newOrderId,
@@ -190,6 +187,7 @@ const handleCheckout = async () => {
     }
 
     showReceiptModal.value = true
+
     cartStore.clearCart()
     paymentType.value = 'full'
     await cartStore.fetchProducts()
@@ -499,4 +497,39 @@ transition: all 0.2s;
   justify-content: center;
   gap: 8px;
   }
+@media (max-width: 1023px) {
+  .cart-section {
+    height: auto;
+  }
+
+  .cart-items {
+    min-height: 150px;
+    max-height: 35vh;
+  }
+}
+
+@media (max-width: 640px) {
+  .cart-title {
+    padding: 12px 16px 8px;
+    font-size: 1.05rem;
+  }
+
+  .cart-items {
+    padding: 0 16px;
+  }
+
+  .checkout-panel {
+    padding: 16px;
+  }
+
+  .toggle-btn {
+    font-size: 0.85rem;
+    padding: 6px 0;
+  }
+
+  .pay-btn {
+    padding: 14px;
+  }
+}
 </style>
+

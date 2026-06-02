@@ -37,6 +37,22 @@ onMounted(() => {
   grid-template-columns: 1fr 400px;
   gap: 24px;
   flex: 1;
+  min-height: 0; 
   overflow: hidden;
 }
+
+@media (max-width: 1023px) {
+  .pos-container {
+    height: auto;
+    min-height: calc(100vh - 80px);
+  }
+
+  .pos-layout {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    gap: 16px;
+  }
+}
+
 </style>
