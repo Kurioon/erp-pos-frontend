@@ -47,7 +47,7 @@ export const useRepairsStore = defineStore('repairs', () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 
-      jobs.value.unshift(response.data)
+      await fetchJobs()
 
       window.dispatchEvent(
         new CustomEvent('app-success', {

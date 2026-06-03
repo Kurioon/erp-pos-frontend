@@ -1,8 +1,8 @@
 export const REPAIR_STATUSES = {
   PENDING: 'pending',
   WAITING_PARTS: 'waiting_parts',
-  REPAIRED: 'repaired',
-  DELIVERED: 'delivered',
+  REPAIRED: 'done', 
+  DELIVERED: 'returned',
 }
 
 export const REPAIR_STATUS_LABELS = {
