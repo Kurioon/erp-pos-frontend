@@ -1,36 +1,3 @@
-<script setup>
-import { ref, computed, onMounted, shallowRef } from 'vue'
-import { useRepairsStore } from '@/stores/repairs'
-import { REPAIR_STATUSES } from '@/constants/repairs'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import RepairFormModal from '@/components/repairs/RepairFormModal.vue'
-import RepairsBoard from '@/components/repairs/RepairsBoard.vue'
-import RepairsTable from '@/components/repairs/RepairsTable.vue'
-const repairsStore = useRepairsStore()
-const viewMode = ref('kanban')
-const isModalOpen = ref(false)
-onMounted(() => {
-  repairsStore.fetchJobs()
-})
-const totalJobs = computed(() => repairsStore.jobs.length)
-const activeJobs = computed(() => {
-  return repairsStore.jobs.filter(j => 
-    j.status === REPAIR_STATUSES.PENDING || j.status === REPAIR_STATUSES.WAITING_PARTS
-  ).length
-})
-const handleAddRepair = async (formData) => {
-  try {
-    await repairsStore.createJob(formData)
-    isModalOpen.value = false
-  } catch (error) {
-    console.error('Помилка при створенні:', error)
-  }
-}
-const currentViewComponent = computed(() => {
-  return viewMode.value === 'kanban' ? RepairsBoard : RepairsTable
-})
-</script>
-
 <template>
   <div class="repairs-view">
     <header class="header">
@@ -38,7 +5,7 @@ const currentViewComponent = computed(() => {
         <h1>Ремонти — Service Desk</h1>
         <p class="subtitle">Всього: {{ totalJobs }} · Активних: {{ activeJobs }}</p>
       </div>
-      
+
       <div class="header-actions">
         <div class="view-toggle">
           <button class="toggle-btn" :class="{ active: viewMode === 'kanban' }" @click="viewMode = 'kanban'">
@@ -49,20 +16,62 @@ const currentViewComponent = computed(() => {
           </button>
         </div>
         <BaseButton @click="isModalOpen = true">+ Новий ремонт</BaseButton>
-        
-        <RepairFormModal 
-          v-if="isModalOpen" 
-          @close="isModalOpen = false" 
-          @submit="handleAddRepair" 
+
+        <RepairFormModal
+          v-if="isModalOpen"
+          @close="isModalOpen = false"
+          @submit="handleAddRepair"
         />
       </div>
     </header>
 
-    <transition name="fade-slide" mode="out-in">
+    <div v-if="repairsStore.isLoading && repairsStore.jobs.length === 0" class="loading-state">
+      Завантаження ремонтів...
+    </div>
+
+    <transition v-else name="fade-slide" mode="out-in">
       <component :is="currentViewComponent" />
     </transition>
   </div>
 </template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRepairsStore } from '@/stores/repairs'
+import { REPAIR_STATUSES } from '@/constants/repairs'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import RepairFormModal from '@/components/repairs/RepairFormModal.vue'
+import RepairsBoard from '@/components/repairs/RepairsBoard.vue'
+import RepairsTable from '@/components/repairs/RepairsTable.vue'
+
+const repairsStore = useRepairsStore()
+const viewMode = ref('kanban')
+const isModalOpen = ref(false)
+
+onMounted(() => {
+  repairsStore.fetchJobs()
+})
+
+const totalJobs = computed(() => repairsStore.jobs.length)
+const activeJobs = computed(() => {
+  return repairsStore.jobs.filter(j =>
+    j.status === REPAIR_STATUSES.PENDING || j.status === REPAIR_STATUSES.WAITING_PARTS
+  ).length
+})
+
+const handleAddRepair = async (formData) => {
+  try {
+    await repairsStore.createJob(formData)
+    isModalOpen.value = false
+  } catch (error) {
+    console.error('Помилка при створенні:', error)
+  }
+}
+
+const currentViewComponent = computed(() => {
+  return viewMode.value === 'kanban' ? RepairsBoard : RepairsTable
+})
+</script>
 
 <style scoped>
 .repairs-view {
@@ -114,6 +123,13 @@ const currentViewComponent = computed(() => {
 .toggle-btn.active {
   background: #2563eb;
   color: white;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 40px;
+  color: #94a3b8;
+  font-size: 1.1rem;
 }
 
 .fade-slide-enter-active, .fade-slide-leave-active {

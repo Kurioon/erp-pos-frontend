@@ -221,6 +221,39 @@ const deleteCashbox = async (id) => {
   }
 }
 
+const updateCashbox = async (id, cashboxData) => {
+  isLoading.value = true
+  try {
+    const response = await api.patch(`/cash-registers/${id}/`, cashboxData)
+
+    const index = availableCashboxes.value.findIndex((c) => c.id === id)
+    if (index !== -1) {
+      availableCashboxes.value[index] = response.data
+    }
+
+    if (activeCashbox.value?.id === id) {
+      activeCashbox.value = response.data
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('app-success', {
+        detail: { message: `Дані каси успішно оновлено!`, type: 'success' },
+      }),
+    )
+    return response.data
+  } catch (error) {
+    console.error('Помилка оновлення каси:', error)
+    window.dispatchEvent(
+      new CustomEvent('api-error', {
+        detail: { message: 'Не вдалося оновити касу. Перевірте дані.', type: 'error' },
+      }),
+    )
+    throw error
+  } finally {
+    isLoading.value = false
+  }
+}
+
   return {
     items,
     prepayAmount,
@@ -242,5 +275,6 @@ const deleteCashbox = async (id) => {
     getOrderPayload,
     createCashbox,
     deleteCashbox,
+    updateCashbox,
   }
 })
