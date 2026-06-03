@@ -11,15 +11,15 @@
         </BaseButton>
         <BaseButton
           variant="secondary"
-          :class="{ 'active-pill': selectedType === TRANSACTION_TYPES.INCOME }"
-          @click="selectedType = TRANSACTION_TYPES.INCOME"
+          :class="{ 'active-pill': selectedType === 'income' }"
+          @click="selectedType = 'income'"
         >
           Доходи
         </BaseButton>
         <BaseButton
           variant="secondary"
-          :class="{ 'active-pill': selectedType === TRANSACTION_TYPES.EXPENSE }"
-          @click="selectedType = TRANSACTION_TYPES.EXPENSE"
+          :class="{ 'active-pill': selectedType === 'expense' }"
+          @click="selectedType = 'expense'"
         >
           Витрати
         </BaseButton>
@@ -57,25 +57,40 @@
             <th>КАСА</th>
             <th>ТИП</th>
             <th class="text-right">СУМА</th>
-            <th>ID ЗАМОВЛЕННЯ</th>
+            <th>ПРИЗНАЧЕННЯ / ID</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="tx in filteredTransactions" :key="tx.id" class="table-row-hover">
+          <tr
+            v-for="tx in filteredTransactions"
+            :key="tx.id"
+            class="table-row-hover cursor-pointer"
+            @click="selectedTx = tx; isDetailsOpen = true"
+          >
             <td class="text-muted font-medium">{{ formatDate(tx.timestamp || new Date()) }}</td>
 
             <td class="font-bold text-dark">{{ getCashboxName(tx.cash_register) }}</td>
+
             <td>
-              <BaseStatusBadge
-                :label="Number(tx.amount) > 0 ? TRANSACTION_TYPE_LABELS[TRANSACTION_TYPES.INCOME] : TRANSACTION_TYPE_LABELS[TRANSACTION_TYPES.EXPENSE]"
-                :class="Number(tx.amount) > 0 ? TRANSACTION_TYPE_CLASSES[TRANSACTION_TYPES.INCOME] : TRANSACTION_TYPE_CLASSES[TRANSACTION_TYPES.EXPENSE]"
-              />
+              <BaseStatusBadge :class="getTransactionClass(tx)">
+                {{ getTransactionLabel(tx) }}
+              </BaseStatusBadge>
             </td>
-            <td class="text-right font-bold text-amount" :class="Number(tx.amount) > 0 ? 'amt-positive' : 'amt-negative'">
-              {{ Number(tx.amount) > 0 ? '+' : '' }}{{ formatCurrency(tx.amount, tx.currency || 'UAH') }}
+
+            <td class="text-right font-bold text-amount" :class="['expense', 'refund'].includes(tx.transaction_type) ? 'amt-negative' : 'amt-positive'">
+              {{ ['expense', 'refund'].includes(tx.transaction_type) ? '-' : '+' }}{{ formatCurrency(tx.amount, tx.currency || 'UAH') }}
             </td>
+
             <td class="font-medium" :class="tx.order ? 'text-order-id' : 'text-muted'">
-              {{ tx.order || '—' }}
+              <template v-if="tx.order">
+                Замовлення #{{ tx.order }}
+              </template>
+              <template v-else-if="tx.comment">
+                {{ tx.comment }}
+              </template>
+              <template v-else>
+                —
+              </template>
             </td>
           </tr>
           <tr v-if="filteredTransactions.length === 0">
@@ -86,6 +101,13 @@
         </tbody>
       </table>
     </div>
+
+    <TransactionDetailsModal
+      :is-open="isDetailsOpen"
+      :tx="selectedTx"
+      :get-cashbox-name="getCashboxName"
+      @close="isDetailsOpen = false"
+    />
   </div>
 </template>
 
@@ -93,18 +115,22 @@
 import { ref, computed, onMounted } from 'vue'
 import { useFinanceStore } from '@/stores/finance'
 import { useCartStore } from '@/stores/pos'
-import { TRANSACTION_TYPES, TRANSACTION_TYPE_LABELS, TRANSACTION_TYPE_CLASSES } from '@/constants/finance'
+import { TRANSACTION_TYPE_LABELS, TRANSACTION_TYPE_CLASSES } from '@/constants/finance'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
+import TransactionDetailsModal from '@/components/finance/TransactionDetailsModal.vue'
 
 const financeStore = useFinanceStore()
 const cartStore = useCartStore()
 
 const selectedType = ref('all')
 const selectedCashboxId = ref('all')
+
+const selectedTx = ref(null)
+const isDetailsOpen = ref(false)
 
 onMounted(() => {
   financeStore.fetchTransactions()
@@ -124,17 +150,25 @@ const cashboxOptions = computed(() => {
 const getCashboxName = (id) => {
   if (!id) return '—'
   const box = cartStore.availableCashboxes.find(b => b.id === id)
-  return box ? box.name : `Каса #${id}`
+  return box ? box.name : `Видалена каса #${id}`
+}
+
+const getTransactionLabel = (tx) => {
+  return TRANSACTION_TYPE_LABELS[tx.transaction_type] || 'Транзакція'
+}
+
+const getTransactionClass = (tx) => {
+  return TRANSACTION_TYPE_CLASSES[tx.transaction_type] || 'type-neutral'
 }
 
 const filteredTransactions = computed(() => {
   return financeStore.transactions.filter(t => {
     let matchesType = true;
 
-    if (selectedType.value === TRANSACTION_TYPES.INCOME) {
-      matchesType = Number(t.amount) > 0;
-    } else if (selectedType.value === TRANSACTION_TYPES.EXPENSE) {
-      matchesType = Number(t.amount) < 0;
+    if (selectedType.value === 'income') {
+      matchesType = !['expense', 'refund'].includes(t.transaction_type);
+    } else if (selectedType.value === 'expense') {
+      matchesType = ['expense', 'refund'].includes(t.transaction_type);
     }
 
     const matchesCashbox = selectedCashboxId.value === 'all' || String(t.cash_register) === String(selectedCashboxId.value)
@@ -146,10 +180,9 @@ const filteredTransactions = computed(() => {
 
 <style scoped>
 .filters-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
-.filter-group-pills { display: flex; gap: 8px; }
+.filter-group-pills { display: flex; gap: 8px; flex-shrink: 0; }
 .active-pill { background-color: #2563eb !important; color: #ffffff !important; }
-
-.right-actions { display: flex; align-items: center; gap: 12px; }
+.right-actions { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
 .cashbox-filter-wrapper { width: 220px; }
 
 .table-container { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: white; }
@@ -160,8 +193,11 @@ const filteredTransactions = computed(() => {
 .table-row-hover:hover { background-color: #f8fafc; transition: background-color 0.15s; }
 .finance-table tr:last-child td { border-bottom: none; }
 
-:deep(.type-income) { background-color: #dcfce7; color: #166534; }
-:deep(.type-expense) { background-color: #fef2f2; color: #991b1b; }
+.cursor-pointer { cursor: pointer; }
+
+:deep(.type-income) { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+:deep(.type-expense) { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+:deep(.type-neutral) { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 
 .text-amount { font-size: 1rem; letter-spacing: -0.01em; }
 .amt-positive { color: #166534; }
@@ -174,4 +210,10 @@ const filteredTransactions = computed(() => {
 .font-bold { font-weight: 600; }
 .text-right { text-align: right; }
 .text-center { text-align: center; }
+
+@media (max-width: 1024px) {
+  .filters-container { flex-direction: column; align-items: stretch; }
+  .right-actions { justify-content: space-between; flex-wrap: wrap; }
+  .cashbox-filter-wrapper { flex-grow: 1; width: auto; }
+}
 </style>
