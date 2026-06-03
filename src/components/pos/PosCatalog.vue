@@ -1,5 +1,9 @@
 <template>
   <section class="products-section" aria-label="Каталог товарів">
+    <ReturnModal
+      :is-open="isReturnModalOpen"
+      @close="isReturnModalOpen = false"
+    />
     <div class="catalog-header">
       <input
         v-model="searchQuery"
@@ -42,16 +46,19 @@
   </section>
 </template>
 
+
 <script setup>
 import { ref, computed } from 'vue'
 import { useCartStore } from '@/stores/pos'
 import { formatCurrency } from '@/utils/formatters'
+import ReturnModal from '@/components/pos/ReturnModal.vue'
 
 const cartStore = useCartStore()
 const searchQuery = ref('')
+const isReturnModalOpen = ref(false)
 
 const filteredProducts = computed(() => {
-  if (!searchQuery.value) return cartStore.products 
+  if (!searchQuery.value) return cartStore.products
   return cartStore.products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
     (p.barcode && p.barcode.includes(searchQuery.value))
@@ -65,7 +72,7 @@ const handleAdd = (product) => {
 }
 
 const handleReturn = () => {
-  console.log('Відкриття вікна повернення товару (US-04)')
+  isReturnModalOpen.value = true
 }
 </script>
 

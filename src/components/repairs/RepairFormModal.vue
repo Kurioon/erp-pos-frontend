@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const emit = defineEmits(['close', 'submit'])
 
-const firstInput = ref(null) // Для автофокусу
+const firstInput = ref(null) 
 
 const formData = ref({
   device_name: '',
@@ -27,7 +27,6 @@ const currentDate = new Date().toLocaleString('uk-UA', {
   minute: '2-digit'
 })
 
-// Валідація
 const validateName = () => {
   if (/[0-9]/.test(formData.value.customer_name)) {
     errors.value.customer_name = 'Ім\'я не може містити цифри'
@@ -54,7 +53,6 @@ const handleSubmit = () => {
   emit('submit', { ...formData.value })
 }
 
-// Закриття по Esc
 const handleKeydown = (e) => {
   if (e.key === 'Escape') {
     emit('close')
@@ -63,7 +61,6 @@ const handleKeydown = (e) => {
 
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
-  // Автоматично ставимо курсор у перше поле при відкритті
   if (firstInput.value) {
     firstInput.value.focus()
   }
@@ -162,7 +159,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* Анімації появи */
 @keyframes fadeIn {
   from { opacity: 0; backdrop-filter: blur(0px); }
   to { opacity: 1; backdrop-filter: blur(2px); }

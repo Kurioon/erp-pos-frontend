@@ -147,7 +147,7 @@ export const useCartStore = defineStore('pos', () => {
   }
 
 const getOrderPayload = () => ({
-    items: items.value.map((i) => ({
+  items: items.value.map((i) => ({
     product: i.id,
     quantity: i.qty,
   })),
@@ -160,6 +160,7 @@ const getOrderPayload = () => ({
   status: orderStatus.value,
   comment_ttn: commentTtn.value,
   cash_register: activeCashbox.value?.id || null,
+  currency: currency.value,
 })
 
   return {

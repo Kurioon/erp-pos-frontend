@@ -5,7 +5,8 @@
       <div id="printable-receipt" class="receipt-paper">
         <div class="receipt-header">
           <h2>ERP / POS SYSTEM</h2>
-          <p>Фіскальний чек (Імітація)</p>
+          <p>Фіскальний чек</p>
+          <p v-if="orderData?.id"><strong>Чек № {{ orderData.id }}</strong></p>
           <p>Касир: {{ authStore.user?.name || 'Невідомо' }}</p>
           <p v-if="cashboxName">Каса: {{ cashboxName }}</p>
           <div class="divider"></div>
@@ -51,8 +52,9 @@
         <BaseButton variant="secondary" @click="closeModal">
           Закрити
         </BaseButton>
-        <BaseButton variant="primary" @click="printReceipt">
-          <span>Друкувати / PDF</span>
+        <BaseButton variant="primary" @click="printReceipt" :disabled="isDownloading">
+          <span v-if="isDownloading">Завантаження...</span>
+          <span v-else>Друкувати PDF</span>
         </BaseButton>
       </div>
 
@@ -61,14 +63,16 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { formatCurrency } from '@/utils/formatters'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import api from '@/api/axios'
 
 const authStore = useAuthStore()
 
-defineProps({
+const props = defineProps({
   isOpen: Boolean,
   orderData: Object,
   cashboxName: String,
@@ -80,12 +84,46 @@ defineProps({
 
 const emit = defineEmits(['close'])
 
+const isDownloading = ref(false)
+
 const closeModal = () => {
   emit('close')
 }
 
-const printReceipt = () => {
-  window.print()
+const printReceipt = async () => {
+  if (!props.orderData?.id) {
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Відсутній ID замовлення для генерації чека.', type: 'error' }
+    }))
+    return
+  }
+
+  isDownloading.value = true
+  try {
+    const response = await api.get(`/orders/${props.orderData.id}/receipt/`, {
+      responseType: 'blob'
+    })
+
+    const fileURL = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+
+    const fileLink = document.createElement('a')
+    fileLink.href = fileURL
+    fileLink.setAttribute('download', `receipt_${props.orderData.id}.pdf`) // Назва файлу
+    document.body.appendChild(fileLink)
+
+    fileLink.click()
+
+    fileLink.remove()
+    setTimeout(() => window.URL.revokeObjectURL(fileURL), 1000)
+
+  } catch (error) {
+    console.error('Помилка завантаження чека:', error)
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Не вдалося згенерувати PDF чек з сервера.', type: 'error' }
+    }))
+  } finally {
+    isDownloading.value = false
+  }
 }
 </script>
 
