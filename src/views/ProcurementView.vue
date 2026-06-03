@@ -1,67 +1,101 @@
-<script setup>
-import { ref } from 'vue'
-import { PURCHASE_STATUSES } from '@/constants/purchases'
+<template>
+  <div class="purchases-view">
+    <header class="page-header">
+      <div class="header-info">
+        <h1>Закупівлі</h1>
+        <p class="subtitle">Замовлення постачальникам</p>
+      </div>
+      <BaseButton @click="openCreateModal">+ Створити чернетку</BaseButton>
+    </header>
 
-// Базові UI та твої нові декомпоновані компоненти
+    <main>
+      <div class="controls-bar">
+        <div class="filters-group">
+          <BaseSelect
+            v-model="filterStatus"
+            :options="statusOptions"
+            placeholder="Всі статуси"
+            class="control-select"
+          />
+          <BaseSelect
+            v-model="sortOrder"
+            :options="SORT_OPTIONS"
+            class="control-select"
+          />
+        </div>
+        <div class="stats-text text-muted">
+          Знайдено записів: <b>{{ filteredAndSortedOrders.length }}</b>
+        </div>
+      </div>
+
+      <div v-if="procurementStore.isLoading && procurementStore.orders.length === 0" class="loading-state">
+        Завантаження закупівель...
+      </div>
+
+      <PurchasesTable
+        v-else
+        :purchases="filteredAndSortedOrders"
+        @edit="openEditModal"
+        @approve="approveOrder"
+      />
+    </main>
+
+    <PurchaseFormModal
+      v-if="isModalOpen"
+      :is-open="isModalOpen"
+      :edit-mode="isEditMode"
+      :order-data="selectedOrder"
+      :suppliers="suppliersList"
+      @close="isModalOpen = false"
+      @add-supplier="handleAddSupplier"
+      @save="handleSaveOrder"
+    />
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useProcurementStore } from '@/stores/procurement'
+import { PURCHASE_STATUS_LABELS, SORT_OPTIONS } from '@/constants/purchases'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
 import PurchasesTable from '@/components/purchases/PurchasesTable.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
 
-// Мокові дані закупівель
-const purchases = ref([
-  {
-    id: 'PO-001',
-    supplier: 'Apple Distribution Ukraine',
-    date: '2026-05-25',
-    status: PURCHASE_STATUSES.APPROVED,
-    items: [
-      { name: 'iPhone 15 Pro Max 256GB', qty: 5, price: 38000 },
-      { name: 'MacBook Air M3 13"', qty: 4, price: 54000 },
-      { name: 'Зарядний пристрій Apple 140W', qty: 20, price: 2500 }
-    ]
-  },
-  {
-    id: 'PO-002',
-    supplier: 'Samsung Electronics Ukraine',
-    date: '2026-05-26', 
-    status: PURCHASE_STATUSES.DRAFT,
-    items: [
-      { name: 'Samsung Galaxy S24 Ultra', qty: 6, price: 32000 },
-      { name: 'Samsung 55" QLED 4K', qty: 3, price: 32000 }
-    ]
-  },
-  {
-    id: 'PO-003',
-    supplier: 'Lenovo Ukraine',
-    date: '2026-05-27',
-    status: PURCHASE_STATUSES.DRAFT,
-    items: [
-      { name: 'Lenovo ThinkPad X1 Carbon', qty: 3, price: 52000 }
-    ]
-  },
-  {
-    id: 'PO-004',
-    supplier: 'Apple Distribution Ukraine',
-    date: '2026-05-20',
-    status: PURCHASE_STATUSES.RECEIVED,
-    items: [
-      { name: 'AirPods Pro 2nd Gen', qty: 10, price: 6000 },
-      { name: 'Apple Watch Ultra 2', qty: 5, price: 18000 },
-      { name: 'Зарядний пристрій Apple 140W', qty: 12, price: 2500 }
-    ]
-  }
-])
-
+const procurementStore = useProcurementStore()
 const suppliersList = ref(['Apple Distribution Ukraine', 'Samsung Electronics Ukraine', 'Lenovo Ukraine', 'Xiaomi Official'])
 
 const isModalOpen = ref(false)
 const isEditMode = ref(false)
 const selectedOrder = ref(null)
 
-const approveOrder = (id) => {
-  const order = purchases.value.find(p => p.id === id)
-  if (order) order.status = PURCHASE_STATUSES.APPROVED
-}
+const filterStatus = ref('all')
+const sortOrder = ref('newest')
+
+const statusOptions = computed(() => {
+  const options = [{ value: 'all', label: 'Всі статуси' }]
+  Object.entries(PURCHASE_STATUS_LABELS).forEach(([val, label]) => {
+    options.push({ value: val, label })
+  })
+  return options
+})
+
+const filteredAndSortedOrders = computed(() => {
+  let result = [...procurementStore.orders]
+  if (filterStatus.value !== 'all') {
+    result = result.filter(o => o.status === filterStatus.value)
+  }
+  result.sort((a, b) => {
+    const dateA = new Date(a.date).getTime()
+    const dateB = new Date(b.date).getTime()
+    return sortOrder.value === 'newest' ? dateB - dateA : dateA - dateB
+  })
+  return result
+})
+
+onMounted(() => {
+  procurementStore.fetchOrders()
+})
 
 const openCreateModal = () => {
   isEditMode.value = false
@@ -81,85 +115,31 @@ const handleAddSupplier = (supplierName) => {
   }
 }
 
-const handleSaveOrder = (modalOrderData) => {
+const handleSaveOrder = async (payload) => {
   if (isEditMode.value && selectedOrder.value) {
-    const order = purchases.value.find(p => p.id === selectedOrder.value.id)
-    if (order) {
-      order.supplier = modalOrderData.supplier
-      order.date = modalOrderData.date
-      order.items = [...modalOrderData.items]
-    }
+    await procurementStore.updateOrder(selectedOrder.value.id, payload)
   } else {
-    const nextIdNumber = purchases.value.length + 1
-    const formattedId = `PO-${String(nextIdNumber).padStart(3, '0')}`
-    purchases.value.unshift({
-      id: formattedId,
-      supplier: modalOrderData.supplier,
-      date: modalOrderData.date,
-      status: PURCHASE_STATUSES.DRAFT,
-      items: [...modalOrderData.items]
-    })
+    await procurementStore.createOrder(payload)
   }
   isModalOpen.value = false
 }
+
+const approveOrder = async (id) => {
+  if (confirm('Затвердити закупівлю? Товари будуть зараховані на склад.')) {
+    await procurementStore.approveOrder(id)
+  }
+}
 </script>
 
-<template>
-  <div class="purchases-view">
-    <header class="page-header">
-      <div class="header-info">
-        <h1>Закупівлі</h1>
-        <p class="subtitle">Замовлення постачальникам</p>
-      </div>
-    </header>
-
-    <main>
-      <PurchasesTable 
-        :purchases="purchases" 
-        @edit="openEditModal" 
-        @approve="approveOrder" 
-      />
-    </main>
-
-    <PurchaseFormModal 
-      v-if="isModalOpen"
-      :is-open="isModalOpen"
-      :edit-mode="isEditMode"
-      :order-data="selectedOrder"
-      :suppliers="suppliersList"
-      @close="isModalOpen = false"
-      @add-supplier="handleAddSupplier"
-      @save="handleSaveOrder"
-    />
-  </div>
-</template>
-
 <style scoped>
-.purchases-view {
-  padding: 32px;
-  background-color: #ffffff;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
-}
-
-.header-info h1 {
-  font-size: 1.6rem;
-  color: #0f172a;
-  margin: 0 0 4px 0;
-  font-weight: 700;
-}
-
-.subtitle {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.9rem;
-}
+.purchases-view { padding: 32px; background-color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.header-info h1 { font-size: 1.6rem; color: #0f172a; margin: 0 0 4px 0; font-weight: 700; }
+.subtitle { margin: 0; color: #64748b; font-size: 0.9rem; }
+.controls-bar { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+.filters-group { display: flex; gap: 16px; }
+.control-select { width: 220px; }
+.stats-text { font-size: 0.9rem; }
+.stats-text b { color: #0f172a; }
+.loading-state { text-align: center; color: #94a3b8; padding: 40px; font-size: 1.1rem; }
 </style>
