@@ -193,7 +193,12 @@ const filteredTransactions = computed(() => {
 .table-row-hover:hover { background-color: #f8fafc; transition: background-color 0.15s; }
 .finance-table tr:last-child td { border-bottom: none; }
 
-.cursor-pointer { cursor: pointer; }
+.cursor-pointer { cursor: pointer; transition: all 0.2s ease;}
+
+.cursor-pointer:hover td,
+.cursor-pointer:active td {
+  color: #2563eb !important;
+}
 
 :deep(.type-income) { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 :deep(.type-expense) { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
