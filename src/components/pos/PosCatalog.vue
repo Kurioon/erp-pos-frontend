@@ -198,4 +198,55 @@ const handleReturn = () => {
   background: #fef2f2;
   color: #ef4444;
 }
+@media (max-width: 1023px) {
+  .products-section {
+    height: 45vh; 
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .products-section {
+    height: 45vh;
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 640px) {
+  .catalog-header {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .return-btn {
+    width: 100%;
+    padding: 10px;
+  }
+
+  .products-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 4px 4px 20px 4px;
+  }
+
+  .product-card {
+    padding: 10px;
+    min-height: 90px;
+  }
+
+  .product-title {
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+  }
+
+  .price {
+    font-size: 0.95rem;
+  }
+
+  .stock-badge {
+    padding: 2px 4px;
+    font-size: 0.75rem;
+  }
+}
 </style>

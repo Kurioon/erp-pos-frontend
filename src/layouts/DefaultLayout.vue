@@ -1,9 +1,19 @@
 <template>
-  <div class="layout-wrapper">
-    <AppSidebar />
-    <div class="main-content">
-      <AppHeader />
-      <main class="page-content">
+  <div class="app-layout-container">
+    <AppSidebar :isMobileOpen="isMobileSidebarOpen" />
+
+    <transition name="fade">
+      <div
+        v-if="isMobileSidebarOpen"
+        class="sidebar-mobile-overlay"
+        @click="isMobileSidebarOpen = false"
+      ></div>
+    </transition>
+
+    <div class="main-viewport-wrapper">
+      <AppHeader @toggle-menu="isMobileSidebarOpen = !isMobileSidebarOpen" />
+
+      <main class="page-content-render">
         <router-view />
       </main>
     </div>
@@ -11,24 +21,63 @@
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
+
+const route = useRoute()
+const isMobileSidebarOpen = ref(false)
+
+watch(() => route.path, () => {
+  isMobileSidebarOpen.value = false
+})
 </script>
 
 <style scoped>
-.layout-wrapper {
+.app-layout-container {
   display: flex;
-  min-height: 100vh;
-  background-color: #f9fafb; 
+  height: 100vh; 
+  width: 100vw;
+  overflow: hidden;
+  background-color: #f9fafb;
 }
-.main-content {
+
+.main-viewport-wrapper {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
-.page-content {
-  padding: 24px;
+
+.page-content-render {
   flex: 1;
+  padding: 24px;
   overflow-y: auto;
 }
+
+@media (max-width: 1023px) {
+  .main-viewport-wrapper {
+    padding-left: 0;
+  }
+
+  .page-content-render {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  .sidebar-mobile-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.3);
+    backdrop-filter: blur(2px);
+    z-index: 90;
+  }
+}
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

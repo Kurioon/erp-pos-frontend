@@ -1,52 +1,165 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
+import api from '@/api/axios'
 
 export const useRepairsStore = defineStore('repairs', () => {
-  // Мокові дані, що точно відповідають моделі ServiceJob
-  const jobs = ref([
-    {
-      id: 101,
-      customer_name: 'Іван Петренко',
-      customer_phone: '+380501234567',
-      device_name: 'iPhone 11',
-      description: 'Заміна акумулятора. Клієнт просив оригінал.',
-      status: 'прийнято',
-      storage_cell: 'R1',
-      created_at: '2026-05-28T10:00:00Z',
-    },
-    {
-      id: 102,
-      customer_name: 'Марія Коваль',
-      customer_phone: '+380679876543',
-      device_name: 'MacBook Air M1',
-      description: 'Чистка від пилу та заміна термопасти.',
-      status: 'відремонтовано',
-      storage_cell: 'S5',
-      created_at: '2026-05-27T14:30:00Z',
-    },
-    {
-      id: 103,
-      customer_name: 'ТОВ "Альфа"',
-      customer_phone: '+380441112233',
-      device_name: 'Кавомашина Philips',
-      description: 'Не гріє воду, видає помилку E05.',
-      status: 'очікує компонентів',
-      storage_cell: 'T2',
-      created_at: '2026-05-29T09:15:00Z',
-    },
-  ])
+  const jobs = ref([])
+  const isLoading = ref(false)
+  const pagination = ref({ count: 0, next: null, previous: null })
 
-  const jobsByStatus = computed(() => {
-    return {
-      прийнято: jobs.value.filter((job) => job.status === 'прийнято'),
-      'очікує компонентів': jobs.value.filter((job) => job.status === 'очікує компонентів'),
-      відремонтовано: jobs.value.filter((job) => job.status === 'відремонтовано'),
-      видано: jobs.value.filter((job) => job.status === 'видано'),
+  const fetchJobs = async (page = 1) => {
+    isLoading.value = true
+    try {
+      const response = await api.get(`/service-jobs/?page=${page}`)
+      jobs.value = response.data.results || []
+
+      pagination.value = {
+        count: response.data.count,
+        next: response.data.next,
+        previous: response.data.previous,
+      }
+    } catch (error) {
+      console.error('Помилка завантаження ремонтів:', error)
+      window.dispatchEvent(
+        new CustomEvent('api-error', {
+          detail: { message: 'Не вдалося завантажити список ремонтів', type: 'error' },
+        }),
+      )
+    } finally {
+      isLoading.value = false
     }
-  })
+  }
+
+  const createJob = async (jobData, photoFile = null) => {
+    isLoading.value = true
+    try {
+      const formData = new FormData()
+      formData.append('customer_name', jobData.customer_name)
+      formData.append('customer_phone', jobData.customer_phone)
+      formData.append('device_name', jobData.device_name)
+      formData.append('description', jobData.description)
+
+      if (jobData.comment) formData.append('comment', jobData.comment)
+      if (jobData.storage_cell) formData.append('storage_cell', jobData.storage_cell)
+      if (photoFile) formData.append('photo', photoFile)
+
+      const response = await api.post('/service-jobs/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+
+      await fetchJobs()
+
+      window.dispatchEvent(
+        new CustomEvent('app-success', {
+          detail: { message: 'Техніку успішно прийнято в ремонт!', type: 'success' },
+        }),
+      )
+
+      return response.data
+    } catch (error) {
+      console.error('Помилка створення ремонту:', error)
+
+      if (error.response?.status === 409) {
+        window.dispatchEvent(
+          new CustomEvent('api-error', {
+            detail: { message: 'Ця комірка на складі вже зайнята! Оберіть іншу.', type: 'warning' },
+          }),
+        )
+      } else {
+        window.dispatchEvent(
+          new CustomEvent('api-error', {
+            detail: { message: 'Не вдалося створити запис про ремонт.', type: 'error' },
+          }),
+        )
+      }
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const updateJobStatus = async (id, newStatus) => {
+    try {
+      const response = await api.patch(`/service-jobs/${id}/`, { status: newStatus })
+
+      const index = jobs.value.findIndex((job) => job.id === id)
+      if (index !== -1) {
+        jobs.value[index].status = newStatus
+        jobs.value[index].updated_at = response.data.updated_at
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('app-success', {
+          detail: { message: 'Статус ремонту оновлено', type: 'success' },
+        }),
+      )
+    } catch (error) {
+      console.error('Помилка оновлення статусу:', error)
+      window.dispatchEvent(
+        new CustomEvent('api-error', {
+          detail: { message: 'Не вдалося оновити статус ремонту', type: 'error' },
+        }),
+      )
+    }
+  }
+
+  const deleteJob = async (id) => {
+    try {
+      await api.delete(`/service-jobs/${id}/`)
+      jobs.value = jobs.value.filter((job) => job.id !== id)
+
+      window.dispatchEvent(
+        new CustomEvent('app-success', {
+          detail: { message: 'Запис про ремонт видалено', type: 'success' },
+        }),
+      )
+    } catch (error) {
+      console.error('Помилка видалення ремонту:', error)
+      window.dispatchEvent(
+        new CustomEvent('api-error', {
+          detail: { message: 'Не вдалося видалити запис', type: 'error' },
+        }),
+      )
+    }
+  }
+
+  const downloadReceiptPdf = async (id) => {
+    isLoading.value = true
+    try {
+      const response = await api.get(`/service-jobs/${id}/export/pdf/`, {
+        responseType: 'blob',
+      })
+
+      const fileURL = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
+      )
+      const fileLink = document.createElement('a')
+      fileLink.href = fileURL
+      fileLink.setAttribute('download', `repair_receipt_${id}.pdf`)
+      document.body.appendChild(fileLink)
+      fileLink.click()
+      fileLink.remove()
+      setTimeout(() => window.URL.revokeObjectURL(fileURL), 1000)
+    } catch (error) {
+      console.error('Помилка завантаження PDF:', error)
+      window.dispatchEvent(
+        new CustomEvent('api-error', {
+          detail: { message: 'Не вдалося згенерувати квитанцію', type: 'error' },
+        }),
+      )
+    } finally {
+      isLoading.value = false
+    }
+  }
 
   return {
     jobs,
-    jobsByStatus,
+    isLoading,
+    pagination,
+    fetchJobs,
+    createJob,
+    updateJobStatus,
+    deleteJob,
+    downloadReceiptPdf,
   }
 })

@@ -1,38 +1,3 @@
-<script setup>
-import { ref, computed } from 'vue'
-import { useRepairsStore } from '@/stores/repairs'
-import { REPAIR_STATUSES } from '@/constants/repairs'
-import RepairCard from '@/components/repairs/RepairCard.vue'
-
-const repairsStore = useRepairsStore()
-const showFullArchive = ref(false)
-
-const handleDragStart = (event, jobId) => {
-  event.dataTransfer.setData('text/plain', jobId)
-  event.dataTransfer.effectAllowed = 'move'
-}
-
-const handleDrop = async (event, newStatus) => {
-  const jobId = parseInt(event.dataTransfer.getData('text/plain'), 10)
-  await repairsStore.updateJobStatus(jobId, newStatus)
-}
-
-
-const pendingJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.PENDING))
-const waitingJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.WAITING_PARTS))
-const completedJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.REPAIRED))
-
-const deliveredJobs = computed(() => {
-  const allDelivered = repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.DELIVERED)
-  return showFullArchive.value ? allDelivered : allDelivered.slice(0, 5)
-})
-
-const archivedCount = computed(() => {
-  const totalDelivered = repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.DELIVERED).length
-  return totalDelivered > 5 ? totalDelivered - 5 : 0
-})
-</script>
-
 <template>
   <div class="kanban-board">
     <div class="kanban-column col-pending" @dragover.prevent @drop="handleDrop($event, REPAIR_STATUSES.PENDING)">
@@ -91,6 +56,43 @@ const archivedCount = computed(() => {
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { useRepairsStore } from '@/stores/repairs'
+import { REPAIR_STATUSES } from '@/constants/repairs'
+// import RepairCard from '@/components/repairs/RepairCard.vue'
+
+const repairsStore = useRepairsStore()
+const showFullArchive = ref(false)
+
+const handleDragStart = (event, jobId) => {
+  event.dataTransfer.setData('text/plain', String(jobId))
+  event.dataTransfer.effectAllowed = 'move'
+}
+
+const handleDrop = async (event, newStatus) => {
+  const jobIdStr = event.dataTransfer.getData('text/plain')
+  if (!jobIdStr) return
+
+  const jobId = Number(jobIdStr)
+  await repairsStore.updateJobStatus(jobId, newStatus)
+}
+
+const pendingJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.PENDING))
+const waitingJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.WAITING_PARTS))
+const completedJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.REPAIRED))
+
+const deliveredJobs = computed(() => {
+  const allDelivered = repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.DELIVERED)
+  return showFullArchive.value ? allDelivered : allDelivered.slice(0, 5)
+})
+
+const archivedCount = computed(() => {
+  const totalDelivered = repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.DELIVERED).length
+  return totalDelivered > 5 ? totalDelivered - 5 : 0
+})
+</script>
 
 <style scoped>
 .kanban-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; align-items: start; flex: 1; overflow-x: auto; padding-bottom: 20px; }

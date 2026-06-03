@@ -1,43 +1,12 @@
-<script setup>
-import { ref, onMounted, watch } from 'vue'
-import { formatCurrency, formatDate } from '@/utils/formatters'
-import BaseButton from '@/components/ui/BaseButton.vue'
-
-const props = defineProps({
-  product: { type: Object, default: null },
-  movementHistory: { type: Array, required: true }
-})
-
-const emit = defineEmits(['close', 'save'])
-
-const activePanelTab = ref('edit')
-const localProduct = ref(null)
-
-const syncLocalData = () => {
-  if (props.product) {
-    localProduct.value = { ...props.product }
-  } else {
-    localProduct.value = null
-  }
-}
-
-onMounted(syncLocalData)
-watch(() => props.product, syncLocalData, { deep: true })
-
-const handleSave = () => {
-  emit('save', localProduct.value)
-}
-</script>
-
 <template>
   <div class="drawer-wrapper">
     <div class="panel-overlay" :class="{ 'is-open': props.product }" @click="emit('close')"></div>
-    
+
     <aside class="side-panel" :class="{ 'is-open': props.product }">
       <template v-if="localProduct">
         <div class="panel-header">
           <div>
-            <p class="panel-sku font-mono">{{ localProduct.id }}</p>
+            <p class="panel-sku font-mono">{{ localProduct.code || localProduct.id }}</p>
             <h2 class="panel-title">{{ localProduct.name }}</h2>
           </div>
           <button class="close-btn" @click="emit('close')">✕</button>
@@ -77,16 +46,16 @@ const handleSave = () => {
             <div class="edit-form">
               <p class="section-label">НОВІ ЦІНИ</p>
               <div class="form-group">
-                <label>Закупівельна ціна (₴)</label>
-                <input v-model.number="localProduct.purchase_price" type="number" />
+                <label class="form-label">Закупівельна ціна (₴)</label>
+                <BaseInput v-model.number="localProduct.purchase_price" type="number" />
               </div>
               <div class="form-group">
-                <label>Оптова ціна (₴)</label>
-                <input v-model.number="localProduct.wholesale_price" type="number" />
+                <label class="form-label">Оптова ціна (₴)</label>
+                <BaseInput v-model.number="localProduct.wholesale_price" type="number" />
               </div>
               <div class="form-group">
-                <label>Роздрібна ціна (₴)</label>
-                <input v-model.number="localProduct.retail_price" type="number" />
+                <label class="form-label">Роздрібна ціна (₴)</label>
+                <BaseInput v-model.number="localProduct.retail_price" type="number" />
               </div>
             </div>
 
@@ -108,7 +77,7 @@ const handleSave = () => {
                   </span>
                 </div>
                 <div class="history-meta">
-                  <span class="text-muted">{{ formatDate(record.date) }}</span>
+                  <span class="text-muted">{{ record.date }}</span>
                   <span class="text-muted">•</span>
                   <span class="text-muted font-medium text-dark">{{ record.order }}</span>
                   <span class="history-balance">Залишок: {{ record.balance }}</span>
@@ -121,6 +90,38 @@ const handleSave = () => {
     </aside>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted, watch } from 'vue'
+import { formatCurrency } from '@/utils/formatters'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
+
+const props = defineProps({
+  product: { type: Object, default: null },
+  movementHistory: { type: Array, required: true }
+})
+
+const emit = defineEmits(['close', 'save'])
+
+const activePanelTab = ref('edit')
+const localProduct = ref(null)
+
+const syncLocalData = () => {
+  if (props.product) {
+    localProduct.value = { ...props.product }
+  } else {
+    localProduct.value = null
+  }
+}
+
+onMounted(syncLocalData)
+watch(() => props.product, syncLocalData, { deep: true })
+
+const handleSave = () => {
+  emit('save', localProduct.value)
+}
+</script>
 
 <style scoped>
 .panel-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.3); backdrop-filter: blur(2px); z-index: 900; opacity: 0; visibility: hidden; transition: all 0.25s ease; }
@@ -138,14 +139,9 @@ const handleSave = () => {
 .panel-content { padding: 24px; flex: 1; overflow-y: auto; }
 .section-label { font-size: 0.75rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em; margin-bottom: 14px; }
 .current-prices-card { background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
-.prices-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.price-label { font-size: 0.8rem; color: #64748b; margin: 0 0 4px 0; font-weight: 500; }
-.price-val { font-size: 0.95rem; font-weight: 700; color: #1e293b; margin: 0; }
 .edit-form { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: 0.85rem; color: #475569; font-weight: 600; }
-.form-group input { padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; transition: all 0.15s; }
-.form-group input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08); }
+.form-label { font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: block; }
 .w-full { width: 100%; }
 .history-list { display: flex; flex-direction: column; gap: 12px; }
 .history-item { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; }
@@ -160,8 +156,22 @@ const handleSave = () => {
 .text-dark { color: #1e293b; }
 .history-balance { margin-left: auto; font-weight: 600; color: #475569; }
 .font-mono { font-family: monospace; }
-
-@media (max-width: 768px) {
-  .side-panel { width: 100%; }
+.prices-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.price-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0 0 2px 0;
+  font-weight: 500;
+}
+.price-val {
+  font-size: 0.85rem;
+  color: #1e293b;
+  margin: 0;
+  word-wrap: break-word; 
+  line-height: 1.2;
 }
 </style>
