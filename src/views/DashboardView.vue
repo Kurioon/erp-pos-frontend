@@ -1,37 +1,8 @@
-<template>
-  <div class="dashboard-view">
-    <header class="dashboard-header">
-      <div class="header-title-row">
-        <div>
-          <h1>Дашборд</h1>
-          <p class="subtitle">{{ currentFormattedDate }}</p>
-        </div>
-        <div class="store-selector">
-          <div class="status-dot"></div>
-          <select :value="currentRegister" @change="repairsStore.selectedCashRegister = $event.target.value">
-            <option value="Загальне">Загальний простір</option>
-            <option value="Каса 1">Каса 1 (UAH)</option>
-            <option value="Каса 2">Каса 2 (USD)</option>
-            <option value="Каса 3">Каса 3 (UAH)</option>
-          </select>
-        </div>
-      </div>
-    </header>
-    <DashboardMetrics :metrics="dashboardData.metrics" />
-    <div class="main-dashboard-grid">
-      <DashboardChart :chart-data="dashboardData.chart" />
-      <DashboardAlerts :alerts="dashboardData.alerts" />
-    </div>
-    <DashboardTransactionsTable 
-      :transactions="filteredTransactions" 
-      :current-register="currentRegister"
-    />
-  </div>
-</template>
-
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRepairsStore } from '@/stores/repairs'
+
+// Імпортуємо атомарні компоненти
 import DashboardMetrics from '@/components/dashboard/DashboardMetrics.vue'
 import DashboardChart from '@/components/dashboard/DashboardChart.vue'
 import DashboardAlerts from '@/components/dashboard/DashboardAlerts.vue'
@@ -40,12 +11,37 @@ import DashboardTransactionsTable from '@/components/dashboard/DashboardTransact
 const repairsStore = useRepairsStore()
 const currentRegister = computed(() => repairsStore.selectedCashRegister || 'Загальне')
 
+// Реактивний стан для кастомного меню вибору каси
+const isStoreMenuOpen = ref(false)
+const stores = [
+  { value: 'all', label: 'Загальне' },
+  { value: '1', label: 'Каса 1' },
+  { value: '2', label: 'Каса 2' },
+  { value: '3', label: 'Каса 3' }
+]
+
+const toggleStoreMenu = () => {
+  isStoreMenuOpen.value = !isStoreMenuOpen.value
+}
+
+const closeStoreMenu = () => {
+  setTimeout(() => { isStoreMenuOpen.value = false }, 150)
+}
+
+const selectStore = (store) => {
+  repairsStore.selectedCashRegister = store.label
+  isStoreMenuOpen.value = false
+}
+
+// Автоматичний вивід поточної дати українською мовою
 const currentFormattedDate = computed(() => {
   const date = new Date()
   const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
   const formatted = date.toLocaleDateString('uk-UA', options)
   return formatted.charAt(0).toUpperCase() + formatted.slice(1)
 })
+
+// Статичні реактивні дані під макети Фігми
 const dashboardData = computed(() => {
   const register = currentRegister.value
 
@@ -80,6 +76,7 @@ const dashboardData = computed(() => {
       ]
     }
   }
+
   return {
     metrics: { revenue: 93970, sales: 3, repairs: 9, lowStock: 5 },
     chart: [35, 50, 40, 60, 75, 90, 70],
@@ -93,6 +90,7 @@ const dashboardData = computed(() => {
   }
 })
 
+// Журнал транзакцій для нижньої таблиці
 const allTransactions = [
   { date: '2026-05-27 09:15', register: 'Каса 1', type: 'Продаж', amount: 45990, currency: 'UAH', order: 'ORD-0125', class: 'type-sale', sign: '+' },
   { date: '2026-05-27 10:30', register: 'Каса 2', type: 'Продаж', amount: 7990, currency: 'UAH', order: 'ORD-0126', class: 'type-sale', sign: '+' },
@@ -103,13 +101,65 @@ const allTransactions = [
   { date: '2026-05-26 17:00', register: 'Каса 1', type: 'Витрата', amount: 5000, currency: 'UAH', order: '—', class: 'type-expense', sign: '-' }
 ]
 
+// Динамічний фільтр транзакцій
 const filteredTransactions = computed(() => {
   if (currentRegister.value === 'Загальне') return allTransactions
   return allTransactions.filter(t => t.register === currentRegister.value)
 })
 </script>
 
+<template>
+  <div class="dashboard-view">
+    <header class="dashboard-header">
+      <div class="header-title-row">
+        <div>
+          <h1>Дашборд</h1>
+          <p class="subtitle">{{ currentFormattedDate }}</p>
+        </div>
 
+        <div 
+          class="global-store-selector" 
+          @click="toggleStoreMenu" 
+          @blur="closeStoreMenu" 
+          tabindex="0"
+        >
+          <span class="status-dot"></span>
+          <span class="selected-store-label">{{ currentRegister }}</span>
+          <span class="dropdown-icon-arrow" :class="{ 'rotated': isStoreMenuOpen }">▼</span>
+          
+          <transition name="dropdown">
+            <div v-if="isStoreMenuOpen" class="store-dropdown-menu">
+              <button 
+                v-for="store in stores" 
+                :key="store.value" 
+                class="store-option-btn"
+                :class="{ 'is-active': currentRegister === store.label }"
+                @click.stop="selectStore(store)"
+              >
+                <span class="option-txt">{{ store.label }}</span>
+                <svg v-if="currentRegister === store.label" class="check-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </button>
+            </div>
+          </transition>
+        </div>
+      </div>
+    </header>
+
+    <DashboardMetrics :metrics="dashboardData.metrics" />
+
+    <div class="main-dashboard-grid">
+      <DashboardChart :chart-data="dashboardData.chart" />
+      <DashboardAlerts :alerts="dashboardData.alerts" />
+    </div>
+
+    <DashboardTransactionsTable 
+      :transactions="filteredTransactions" 
+      :current-register="currentRegister"
+    />
+  </div>
+</template>
 
 <style scoped>
 .dashboard-view {
@@ -139,14 +189,31 @@ const filteredTransactions = computed(() => {
   justify-content: space-between;
   align-items: center;
 }
-.store-selector {
+
+.global-store-selector {
   display: inline-flex;
   align-items: center;
-  background: white;
-  padding: 8px 14px;
+  background: #f8fafc;
+  padding: 8px 16px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  cursor: pointer;
+  position: relative;
+  outline: none;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.global-store-selector:hover, .global-store-selector:focus-within {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.selected-store-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+  margin-right: 8px;
 }
 
 .status-dot {
@@ -154,18 +221,65 @@ const filteredTransactions = computed(() => {
   height: 8px;
   background-color: #10b981;
   border-radius: 50%;
-  margin-right: 10px;
+  margin-right: 8px;
 }
 
-.store-selector select {
-  border: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #1e293b;
-  outline: none;
+.dropdown-icon-arrow {
+  font-size: 0.6rem;
+  color: #9ca3af;
+  transition: transform 0.2s ease;
+}
+
+.dropdown-icon-arrow.rotated {
+  transform: rotate(180deg);
+}
+
+.store-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 180px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  z-index: 150;
+}
+
+.store-option-btn {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
   background: transparent;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #4b5563;
   cursor: pointer;
-  padding-right: 4px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.store-option-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.store-option-btn.is-active {
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.check-icon {
+  color: #2563eb;
 }
 
 .main-dashboard-grid {
@@ -178,5 +292,16 @@ const filteredTransactions = computed(() => {
   .main-dashboard-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>
