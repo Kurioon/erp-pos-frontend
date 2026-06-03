@@ -28,7 +28,8 @@ onMounted(() => {
 .pos-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 136px);
+  min-height: 650px;
   gap: 16px;
 }
 
@@ -37,8 +38,12 @@ onMounted(() => {
   grid-template-columns: 1fr 400px;
   gap: 24px;
   flex: 1;
-  min-height: 0; 
-  overflow: hidden;
+  min-height: 0;
+}
+
+.pos-layout > :deep(*) {
+  min-height: 0;
+  height: 100%;
 }
 
 @media (max-width: 1023px) {
@@ -54,5 +59,4 @@ onMounted(() => {
     gap: 16px;
   }
 }
-
 </style>

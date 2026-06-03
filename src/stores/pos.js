@@ -146,22 +146,80 @@ export const useCartStore = defineStore('pos', () => {
     commentTtn.value = ''
   }
 
-const getOrderPayload = () => ({
-  items: items.value.map((i) => ({
-    product: i.id,
-    quantity: i.qty,
-  })),
+const getOrderPayload = () => {
+  const payload = {
+    items: items.value.map((i) => ({
+      product: i.id,
+      quantity: i.qty,
+    })),
+    total_amount: totalAmount.value,
+    order_type: 'retail',
+    prepay_amount: prepayAmount.value,
+    balance_due: balanceDue.value,
+    status: orderStatus.value,
+    cash_register: activeCashbox.value?.id || null,
+    currency: currency.value,
+  }
 
-  total_amount: totalAmount.value,
-  order_type: 'retail',
+  if (commentTtn.value.trim()) {
+    payload.comment_ttn = commentTtn.value.trim()
+  }
 
-  prepay_amount: prepayAmount.value,
-  balance_due: balanceDue.value,
-  status: orderStatus.value,
-  comment_ttn: commentTtn.value,
-  cash_register: activeCashbox.value?.id || null,
-  currency: currency.value,
-})
+  return payload
+}
+
+const createCashbox = async (cashboxData) => {
+  isLoading.value = true
+  try {
+    const response = await api.post('/cash-registers/', cashboxData)
+
+    availableCashboxes.value.push(response.data)
+
+    window.dispatchEvent(
+      new CustomEvent('app-success', {
+        detail: { message: `Касу "${response.data.name}" успішно додано!`, type: 'success' },
+      }),
+    )
+    return response.data
+  } catch (error) {
+    console.error('Помилка створення каси:', error)
+    window.dispatchEvent(
+      new CustomEvent('api-error', {
+        detail: { message: 'Не вдалося створити касу. Перевірте дані.', type: 'error' },
+      }),
+    )
+    throw error
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const deleteCashbox = async (id) => {
+  try {
+    await api.delete(`/cash-registers/${id}/`)
+    availableCashboxes.value = availableCashboxes.value.filter((c) => c.id !== id)
+
+    if (activeCashbox.value?.id === id) {
+      activeCashbox.value = availableCashboxes.value[0] || null
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('app-success', {
+        detail: { message: 'Касу успішно видалено!', type: 'success' },
+      }),
+    )
+  } catch (error) {
+    console.error('Помилка видалення каси:', error)
+    window.dispatchEvent(
+      new CustomEvent('api-error', {
+        detail: {
+          message: 'Не вдалося видалити касу. Можливо, по ній є транзакції.',
+          type: 'error',
+        },
+      }),
+    )
+  }
+}
 
   return {
     items,
@@ -182,5 +240,7 @@ const getOrderPayload = () => ({
     updateItemQuantity,
     clearCart,
     getOrderPayload,
+    createCashbox,
+    deleteCashbox,
   }
 })
