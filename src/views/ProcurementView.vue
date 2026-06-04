@@ -8,6 +8,25 @@
       <BaseButton @click="openCreateModal">+ Створити чернетку</BaseButton>
     </header>
 
+    <div class="filters-section">
+      <BaseSelect
+        v-model="filters.status"
+        :options="statusOptions"
+        placeholder="Всі статуси"
+        @update:modelValue="applyFilters"
+        class="filter-select"
+      />
+      <BaseSelect
+        v-model="filters.ordering"
+        :options="orderingOptions"
+        @update:modelValue="applyFilters"
+        class="filter-select"
+      />
+      <BaseButton variant="secondary" @click="resetFilters" class="reset-btn">
+        Скинути
+      </BaseButton>
+    </div>
+
     <main>
       <div v-if="procurementStore.isLoading && procurementStore.orders.length === 0" class="loading-state">
         Завантаження закупівель...
@@ -36,7 +55,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useProcurementStore } from '@/stores/procurement'
+import { PURCHASE_STATUS_LABELS } from '@/constants/purchases'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
 import PurchasesTable from '@/components/purchases/PurchasesTable.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
 
@@ -47,8 +68,32 @@ const isModalOpen = ref(false)
 const isEditMode = ref(false)
 const selectedOrder = ref(null)
 
+const filters = ref({
+  status: '',
+  ordering: '-created_at'
+})
+
+const statusOptions = [
+  { value: '', label: 'Всі статуси' },
+  ...Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => ({ value, label }))
+]
+
+const orderingOptions = [
+  { value: '-created_at', label: 'Спочатку нові' },
+  { value: 'created_at', label: 'Спочатку старі' }
+]
+
+const applyFilters = () => {
+  procurementStore.fetchOrders(filters.value)
+}
+
+const resetFilters = () => {
+  filters.value = { status: '', ordering: '-created_at' }
+  applyFilters()
+}
+
 onMounted(() => {
-  procurementStore.fetchOrders()
+  applyFilters()
 })
 
 const openCreateModal = () => {
@@ -76,6 +121,7 @@ const handleSaveOrder = async (payload) => {
     await procurementStore.updateOrder(selectedOrder.value.id, payload)
   }
   isModalOpen.value = false
+  applyFilters()
 }
 
 const approveOrder = async (id) => {
@@ -100,52 +146,38 @@ const approveOrder = async (id) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
   gap: 16px;
 }
 
-.header-info {
+.header-info { display: flex; flex-direction: column; gap: 4px; }
+.header-info h1 { font-size: 1.6rem; color: #0f172a; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+.subtitle { margin: 0; color: #64748b; font-size: 0.9rem; }
+
+.filters-section {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 12px;
+  align-items: center;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
 }
 
-.header-info h1 {
-  font-size: 1.6rem;
-  color: #0f172a;
-  margin: 0;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
+.filter-select { flex: 1; min-width: 180px; margin-bottom: 0 !important; }
+.filter-select :deep(div) { margin-bottom: 0 !important; }
+.reset-btn { flex-shrink: 0; height: 42px; display: flex; align-items: center; white-space: nowrap; }
 
-.subtitle {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.9rem;
-}
-
-.loading-state {
-  text-align: center;
-  color: #94a3b8;
-  padding: 40px;
-  font-size: 1.1rem;
-}
+.loading-state { text-align: center; color: #94a3b8; padding: 40px; font-size: 1.1rem; }
 
 @media (max-width: 768px) {
-  .purchases-view {
-    padding: 16px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    align-items: stretch;
-    margin-bottom: 24px;
-  }
-
-  .page-header :deep(button) {
-    width: 100%;
-    justify-content: center;
-  }
+  .purchases-view { padding: 16px; }
+  .page-header { flex-direction: column; align-items: stretch; margin-bottom: 24px; }
+  .page-header :deep(button) { width: 100%; justify-content: center; }
+  .filters-section { flex-direction: column; align-items: stretch; }
+  .reset-btn { width: 100%; justify-content: center; }
 }
 </style>
