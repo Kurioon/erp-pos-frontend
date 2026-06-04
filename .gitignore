@@ -13,6 +13,7 @@ dist
 dist-ssr
 coverage
 *.local
+.env
 
 # Editor directories and files
 .vscode/*
@@ -42,3 +43,5 @@ __screenshots__/
 .env
 .env.*
 !.env.example
+*storybook.log
+storybook-static
