@@ -9,10 +9,14 @@
       :disabled="disabled"
       :placeholder="placeholder"
       :class="['base-input', { 'is-invalid': error }]"
+      :aria-invalid="!!error"
+      :aria-describedby="error ? `${uuid}-error` : null"
       @input="$emit('update:modelValue', $event.target.value)"
     />
 
-    <span v-if="error" class="base-input-error">{{ error }}</span>
+    <span v-if="error" :id="`${uuid}-error`" class="base-input-error" role="alert">
+      {{ error }}
+    </span>
   </div>
 </template>
 
@@ -21,7 +25,7 @@ import { computed } from 'vue'
 
 const props = defineProps({
   modelValue: {
-    type: String,
+    type: [String, Number],
     default: ''
   },
   label: {
@@ -94,9 +98,9 @@ const uuid = computed(() => props.id || `input-${Math.random().toString(36).subs
 }
 
 .base-input:focus {
-  border-color: #cbd5e1;
-  background-color: #f1f5f9;
-  outline: 2px solid rgba(37, 99, 235, 0.15);
+  border-color: #2563eb;
+  background-color: #ffffff;
+  outline: 3px solid rgba(37, 99, 235, 0.3);
   outline-offset: 1px;
 }
 
