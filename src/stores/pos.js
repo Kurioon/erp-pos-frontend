@@ -13,14 +13,8 @@ export const useCartStore = defineStore('pos', () => {
   const products = ref([])
   const isLoading = ref(false)
 
-  const totalAmount = computed(() => {
-    return items.value.reduce((sum, item) => sum + item.price * item.qty, 0)
-  })
-
-  const balanceDue = computed(() => {
-    return Math.max(0, totalAmount.value - prepayAmount.value)
-  })
-
+  const totalAmount = computed(() => items.value.reduce((sum, item) => sum + (Number(item.price) * item.qty), 0))
+  const balanceDue = computed(() => Math.max(0, totalAmount.value - prepayAmount.value))
   const orderStatus = computed(() => {
     if (items.value.length === 0) return 'new'
     if (balanceDue.value === 0) return 'paid'
@@ -28,253 +22,111 @@ export const useCartStore = defineStore('pos', () => {
     return 'pending'
   })
 
-  const fetchCashboxes = async () => {
-    try {
-      const response = await api.get('/cash-registers/')
-      availableCashboxes.value = response.data.results || []
-
-      if (availableCashboxes.value.length > 0 && !activeCashbox.value) {
-        activeCashbox.value = availableCashboxes.value[0]
+  const fetchAllStocks = async () => {
+    let allStocks = []
+    let page = 1
+    while (true) {
+      try {
+        const { data } = await api.get('/warehouse-stocks/', { params: { page } })
+        if (data.results) allStocks = allStocks.concat(data.results)
+        if (!data.next) break
+        page++
+      } catch (error) {
+        console.error(`Помилка залишків на сторінці ${page}:`, error)
+        break
       }
-    } catch (error) {
-      console.error('Помилка завантаження кас:', error)
-      window.dispatchEvent(
-        new CustomEvent('api-error', {
-          detail: { message: 'Не вдалося завантажити список кас', type: 'error' },
-        }),
-      )
     }
+    return allStocks
   }
 
   const fetchProducts = async (page = 1) => {
     isLoading.value = true
     try {
-      const [productsResponse, stocksResponse] = await Promise.all([
-        api.get(`/products/?page=${page}`),
-        api.get('/warehouse-stocks/'),
-      ])
-
+      const stocksData = await fetchAllStocks()
+      const productsResponse = await api.get(`/products/?page=${page}`)
       const fetchedProducts = productsResponse.data.results || []
-      const stocksData = stocksResponse.data.results || []
 
       products.value = fetchedProducts.map((product) => {
-        const productStocks = stocksData.filter((s) => s.nomenclature === product.id)
-
-        const totalStock = productStocks.reduce((sum, stockRecord) => sum + stockRecord.quantity, 0)
-
-        return {
-          ...product,
-          stock: totalStock,
-        }
+        const totalStock = stocksData
+          .filter((s) => Number(s.nomenclature) === Number(product.id))
+          .reduce((sum, stock) => sum + (Number(stock.quantity) || 0), 0)
+        
+        return { ...product, stock: totalStock }
       })
     } catch (error) {
       console.error('Помилка завантаження каталогу:', error)
-      window.dispatchEvent(
-        new CustomEvent('api-error', {
-          detail: { message: 'Помилка завантаження товарів', type: 'error' },
-        }),
-      )
+      window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Помилка завантаження товарів', type: 'error' } }))
     } finally {
       isLoading.value = false
     }
   }
 
-  const addItem = (product) => {
-    const stock = product.stock
+  const fetchCashboxes = async () => {
+    try {
+      const { data } = await api.get('/cash-registers/')
+      availableCashboxes.value = data.results || []
+      if (availableCashboxes.value.length > 0 && !activeCashbox.value) {
+        activeCashbox.value = availableCashboxes.value[0]
+      }
+    } catch (error) {
+      console.error('Помилка завантаження кас:', error)
+    }
+  }
 
-    if (stock <= 0) {
-      window.dispatchEvent(
-        new CustomEvent('api-error', {
-          detail: { message: `Товар "${product.name}" закінчився на складі!`, type: 'error' },
-        }),
-      )
+  const addItem = (product) => {
+    if (product.stock <= 0) {
+      window.dispatchEvent(new CustomEvent('api-error', { detail: { message: `Товар закінчився!`, type: 'error' } }))
       return
     }
-
     const existing = items.value.find((i) => i.id === product.id)
     if (existing) {
-      if (existing.qty < stock) {
-        existing.qty += 1
-      } else {
-        window.dispatchEvent(
-          new CustomEvent('api-error', {
-            detail: { message: `Максимальна доступна кількість: ${stock} шт.`, type: 'warning' },
-          }),
-        )
-      }
+      if (existing.qty < product.stock) existing.qty += 1
+      else window.dispatchEvent(new CustomEvent('api-error', { detail: { message: `Максимум: ${product.stock} шт.`, type: 'warning' } }))
     } else {
-      items.value.push({
-        id: product.id,
-        title: product.name,
-        price: Number(product.sale_price),
-        qty: 1,
-        stock: stock,
+      // Тут ми явно присвоюємо 'title', щоб шаблон кошика міг його відобразити
+      items.value.push({ 
+        ...product, 
+        title: product.name, // Призначаємо назву (name -> title)
+        price: Number(product.sale_price), 
+        qty: 1 
       })
     }
   }
 
-  const removeItem = (productId) => {
-    items.value = items.value.filter((i) => i.id !== productId)
-  }
-
+  const removeItem = (productId) => { items.value = items.value.filter((i) => i.id !== productId) }
+  
   const updateItemQuantity = (productId, newQty) => {
     const existing = items.value.find((i) => i.id === productId)
     if (existing) {
       if (newQty > existing.stock) {
-        window.dispatchEvent(
-          new CustomEvent('api-error', {
-            detail: {
-              message: `Більше немає на складі. Доступно: ${existing.stock} шт.`,
-              type: 'warning',
-            },
-          }),
-        )
+        window.dispatchEvent(new CustomEvent('api-error', { detail: { message: `Доступно: ${existing.stock} шт.`, type: 'warning' } }))
         return
       }
-
-      if (newQty > 0) {
-        existing.qty = newQty
-      } else {
-        removeItem(productId)
-      }
+      newQty > 0 ? existing.qty = newQty : removeItem(productId)
     }
   }
 
-  const clearCart = () => {
-    items.value = []
-    prepayAmount.value = 0
-    commentTtn.value = ''
-  }
+  const clearCart = () => { items.value = []; prepayAmount.value = 0; commentTtn.value = '' }
 
-const getOrderPayload = () => {
-  const payload = {
-    items: items.value.map((i) => ({
-      product: i.id,
-      quantity: i.qty,
-    })),
+  const getOrderPayload = () => ({
+    items: items.value.map((i) => ({ product: i.id, quantity: i.qty })),
     total_amount: totalAmount.value,
     order_type: 'retail',
     prepay_amount: prepayAmount.value,
     balance_due: balanceDue.value,
-    status: orderStatus.value,
+    status: 'draft',
     cash_register: activeCashbox.value?.id || null,
     currency: currency.value,
-  }
+    comment_ttn: commentTtn.value.trim()
+  })
 
-  if (commentTtn.value.trim()) {
-    payload.comment_ttn = commentTtn.value.trim()
-  }
-
-  return payload
-}
-
-const createCashbox = async (cashboxData) => {
-  isLoading.value = true
-  try {
-    const response = await api.post('/cash-registers/', cashboxData)
-
-    availableCashboxes.value.push(response.data)
-
-    window.dispatchEvent(
-      new CustomEvent('app-success', {
-        detail: { message: `Касу "${response.data.name}" успішно додано!`, type: 'success' },
-      }),
-    )
-    return response.data
-  } catch (error) {
-    console.error('Помилка створення каси:', error)
-    window.dispatchEvent(
-      new CustomEvent('api-error', {
-        detail: { message: 'Не вдалося створити касу. Перевірте дані.', type: 'error' },
-      }),
-    )
-    throw error
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const deleteCashbox = async (id) => {
-  try {
-    await api.delete(`/cash-registers/${id}/`)
-    availableCashboxes.value = availableCashboxes.value.filter((c) => c.id !== id)
-
-    if (activeCashbox.value?.id === id) {
-      activeCashbox.value = availableCashboxes.value[0] || null
-    }
-
-    window.dispatchEvent(
-      new CustomEvent('app-success', {
-        detail: { message: 'Касу успішно видалено!', type: 'success' },
-      }),
-    )
-  } catch (error) {
-    console.error('Помилка видалення каси:', error)
-    window.dispatchEvent(
-      new CustomEvent('api-error', {
-        detail: {
-          message: 'Не вдалося видалити касу. Можливо, по ній є транзакції.',
-          type: 'error',
-        },
-      }),
-    )
-  }
-}
-
-const updateCashbox = async (id, cashboxData) => {
-  isLoading.value = true
-  try {
-    const response = await api.patch(`/cash-registers/${id}/`, cashboxData)
-
-    const index = availableCashboxes.value.findIndex((c) => c.id === id)
-    if (index !== -1) {
-      availableCashboxes.value[index] = response.data
-    }
-
-    if (activeCashbox.value?.id === id) {
-      activeCashbox.value = response.data
-    }
-
-    window.dispatchEvent(
-      new CustomEvent('app-success', {
-        detail: { message: `Дані каси успішно оновлено!`, type: 'success' },
-      }),
-    )
-    return response.data
-  } catch (error) {
-    console.error('Помилка оновлення каси:', error)
-    window.dispatchEvent(
-      new CustomEvent('api-error', {
-        detail: { message: 'Не вдалося оновити касу. Перевірте дані.', type: 'error' },
-      }),
-    )
-    throw error
-  } finally {
-    isLoading.value = false
-  }
-}
+  const createCashbox = async (data) => { return (await api.post('/cash-registers/', data)).data }
+  const deleteCashbox = async (id) => { await api.delete(`/cash-registers/${id}/`) }
+  const updateCashbox = async (id, data) => { return (await api.patch(`/cash-registers/${id}/`, data)).data }
 
   return {
-    items,
-    prepayAmount,
-    commentTtn,
-    currency,
-    availableCashboxes,
-    activeCashbox,
-    products,
-    isLoading,
-    totalAmount,
-    balanceDue,
-    orderStatus,
-    fetchCashboxes,
-    fetchProducts,
-    addItem,
-    removeItem,
-    updateItemQuantity,
-    clearCart,
-    getOrderPayload,
-    createCashbox,
-    deleteCashbox,
-    updateCashbox,
+    items, prepayAmount, commentTtn, currency, availableCashboxes, activeCashbox, products, isLoading,
+    totalAmount, balanceDue, orderStatus, fetchCashboxes, fetchProducts, addItem, removeItem, 
+    updateItemQuantity, clearCart, getOrderPayload, createCashbox, deleteCashbox, updateCashbox
   }
 })
