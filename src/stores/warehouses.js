@@ -106,7 +106,7 @@ export const useWarehousesStore = defineStore('warehouses', () => {
   }
 const fetchProductMovement = async (productId) => {
   try {
-    const response = await api.get(`/warehouse-stocks/movement/?product=${productId}`)
+    const response = await api.get(`/stock-movements/?nomenclature=${productId}`)
     return response.data.results || response.data || []
   } catch (error) {
     console.error('Помилка завантаження історії руху:', error)
@@ -117,13 +117,22 @@ const fetchProductMovement = async (productId) => {
 const moveStock = async (payload) => {
   isLoading.value = true
   try {
-    await api.post('/warehouse-stocks/move/', {
-      product: payload.product_id,
-      from_warehouse: payload.from_warehouse,
-      to_warehouse: payload.to_warehouse,
+    // 1. Знаходимо ID залишку (WarehouseStock.id) для комбінації товар + склад
+    const sourceStockRecord = stocks.value.find(
+      (s) => s.nomenclature === payload.product_id && s.warehouse === payload.from_warehouse
+    )
+
+    if (!sourceStockRecord) {
+      throw new Error('Залишок не знайдено для вказаної комбінації товару та складу')
+    }
+
+    // 2. Відправляємо POST запит з ID залишку в URL
+    const response = await api.post(`/warehouse-stocks/${sourceStockRecord.id}/move/`, {
       quantity: Number(payload.quantity),
+      destination_warehouse_id: payload.to_warehouse,
     })
 
+    // 3. Перезавантажуємо дані
     await fetchInventory()
 
     window.dispatchEvent(
@@ -131,11 +140,19 @@ const moveStock = async (payload) => {
         detail: { message: 'Товар успішно переміщено!', type: 'success' },
       }),
     )
+
+    return response.data
   } catch (error) {
     console.error('Помилка переміщення товару:', error)
+    
+    let errorMessage = 'Не вдалося перемістити товар. Перевірте залишки.'
+    if (error.response?.data?.detail) {
+      errorMessage = error.response.data.detail
+    }
+    
     window.dispatchEvent(
       new CustomEvent('api-error', {
-        detail: { message: 'Не вдалося перемістити товар. Перевірте залишки.', type: 'error' },
+        detail: { message: errorMessage, type: 'error' },
       }),
     )
     throw error
