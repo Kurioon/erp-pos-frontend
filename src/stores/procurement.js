@@ -12,13 +12,26 @@ export const useProcurementStore = defineStore('procurement', () => {
     return orders.value.filter((order) => order.status === PURCHASE_STATUSES.DRAFT)
   })
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (filters = {}) => {
     isLoading.value = true
     try {
-      const response = await api.get('/orders/?order_type=purchase&ordering=-created_at')
+      const params = new URLSearchParams()
+      params.append('order_type', 'purchase')
+      if (filters.status) params.append('status', filters.status)
+      if (filters.ordering) params.append('ordering', filters.ordering)
+
+      const response = await api.get(`/orders/?${params.toString()}`)
       let fetchedOrders = response.data.results || response.data || []
 
-      fetchedOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      if (filters.status) {
+        fetchedOrders = fetchedOrders.filter((o) => o.status === filters.status)
+      }
+
+      if (filters.ordering === 'created_at' || filters.ordering === 'oldest') {
+        fetchedOrders.sort((a, b) => a.id - b.id)
+      } else {
+        fetchedOrders.sort((a, b) => b.id - a.id)
+      }
 
       const cartStore = useCartStore()
       if (cartStore.products.length === 0) {
@@ -26,8 +39,12 @@ export const useProcurementStore = defineStore('procurement', () => {
       }
 
       orders.value = fetchedOrders.map((order) => {
-        let supplierName = 'Невідомий постачальник'
-        if (order.comment_ttn && order.comment_ttn.includes('Постачальник:')) {
+        let supplierName = order.supplier_name || order.supplier || 'Невідомий постачальник'
+        if (
+          supplierName === 'Невідомий постачальник' &&
+          order.comment_ttn &&
+          order.comment_ttn.includes('Постачальник:')
+        ) {
           const match = order.comment_ttn.match(/Постачальник:\s*(.*?)\s*\|/)
           if (match) supplierName = match[1]
         }
@@ -37,11 +54,22 @@ export const useProcurementStore = defineStore('procurement', () => {
           supplier: supplierName,
           date: order.created_at,
           items: (order.items || []).map((item) => {
-            const productObj = cartStore.products.find((p) => p.id === item.product)
+            let prodId = item.product
+            let prodName = item.product_name || item.name || item.title || ''
+
+            if (typeof item.product === 'object' && item.product !== null) {
+              prodName = item.product.name || item.product.title
+              prodId = item.product.id
+            }
+
+            const productObj = cartStore.products.find((p) => p.id === prodId)
+
             return {
               ...item,
-              name: productObj ? productObj.name || productObj.title : `Товар #${item.product}`,
-              qty: item.quantity,
+              product: prodId,
+              name:
+                prodName || (productObj ? productObj.name || productObj.title : `Товар #${prodId}`),
+              qty: Number(item.quantity || item.qty || 0),
               price: Number(item.price || 0),
             }
           }),
@@ -112,7 +140,6 @@ export const useProcurementStore = defineStore('procurement', () => {
         const deletePromises = existingOrder.items
           .filter((item) => item.id)
           .map((item) => api.delete(`/orders/${id}/items/${item.id}/`))
-
         await Promise.all(deletePromises)
       }
 
@@ -155,15 +182,10 @@ export const useProcurementStore = defineStore('procurement', () => {
     isLoading.value = true
     try {
       await api.patch(`/orders/${id}/`, { status: PURCHASE_STATUSES.APPROVED })
-
-      const index = orders.value.findIndex((o) => o.id === id)
-      if (index !== -1) {
-        orders.value[index].status = PURCHASE_STATUSES.APPROVED
-      }
-
+      await fetchOrders()
       window.dispatchEvent(
         new CustomEvent('app-success', {
-          detail: { message: 'Закупівлю затверджено! Товари додано на склад.', type: 'success' },
+          detail: { message: 'Закупівлю затверджено!', type: 'success' },
         }),
       )
     } catch (error) {
