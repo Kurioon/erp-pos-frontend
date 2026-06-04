@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import api from '@/api/axios'
 
-// ВИПРАВЛЕНО: прибрано зайву ";"
 export const useRepairsStore = defineStore('repairs', () => {
   const jobs = ref([])
   const isLoading = ref(false)
@@ -214,7 +213,7 @@ export const useRepairsStore = defineStore('repairs', () => {
     pagination,
     fetchJobs,
     createJob,
-    updateJob, 
+    updateJob,
     updateJobStatus,
     deleteJob,
     downloadReceiptPdf,

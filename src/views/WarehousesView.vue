@@ -26,7 +26,7 @@
               <button class="icon-btn edit" @click="openWarehouseModal(warehouse)" title="Редагувати">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
               </button>
-              <button class="icon-btn delete" @click="handleDeleteWarehouse(warehouse.id)" title="Видалити">
+              <button class="icon-btn delete" @click="promptDeleteWarehouse(warehouse)" title="Видалити">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
@@ -78,6 +78,22 @@
       @close="isWarehouseModalOpen = false"
       @save="handleSaveWarehouse"
     />
+
+    <BaseModal
+      :is-open="!!warehouseToDelete"
+      @close="warehouseToDelete = null"
+      title="Підтвердження видалення"
+    >
+      <div class="confirm-content">
+        <p>Ви впевнені, що хочете видалити склад <strong>"{{ warehouseToDelete?.name }}"</strong>?</p>
+        <p class="text-danger-sm">Всі товари будуть відв'язані від цього складу.</p>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="warehouseToDelete = null">Скасувати</BaseButton>
+        <BaseButton class="danger-btn" @click="confirmDeleteWarehouse">Видалити</BaseButton>
+      </template>
+    </BaseModal>
+
   </div>
 </template>
 
@@ -85,6 +101,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useWarehousesStore } from '@/stores/warehouses'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import WarehouseFilters from '@/components/warehouses/WarehouseFilters.vue'
 import WarehouseTable from '@/components/warehouses/WarehouseTable.vue'
 import ProductDetailsDrawer from '@/components/warehouses/ProductDetailsDrawer.vue'
@@ -100,6 +117,7 @@ const movementHistory = ref([])
 
 const isWarehouseModalOpen = ref(false)
 const editingWarehouse = ref(null)
+const warehouseToDelete = ref(null)
 
 onMounted(() => {
   warehousesStore.fetchWarehouses()
@@ -120,9 +138,14 @@ const handleSaveWarehouse = async (data) => {
   isWarehouseModalOpen.value = false
 }
 
-const handleDeleteWarehouse = async (id) => {
-  if (confirm('Ви впевнені, що хочете видалити цей склад?')) {
-    await warehousesStore.deleteWarehouse(id)
+const promptDeleteWarehouse = (warehouse) => {
+  warehouseToDelete.value = warehouse
+}
+
+const confirmDeleteWarehouse = async () => {
+  if (warehouseToDelete.value) {
+    await warehousesStore.deleteWarehouse(warehouseToDelete.value.id)
+    warehouseToDelete.value = null
   }
 }
 
@@ -192,26 +215,25 @@ const handleMoveStock = async (moveData) => {
 .warehouse-header { margin-bottom: 32px; }
 .warehouse-header h1 { font-size: 1.6rem; color: #0f172a; margin: 0 0 4px 0; font-weight: 700; letter-spacing: -0.02em; }
 .subtitle { margin: 0; color: #64748b; font-size: 0.9rem; }
-
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; }
 .section-header h2 { font-size: 1.15rem; color: #1e293b; margin: 0; font-weight: 700; }
-
 .warehouses-management-section { margin-bottom: 40px; }
-
 .warehouses-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
 .warehouse-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); transition: all 0.2s ease; }
 .warehouse-card:hover { border-color: #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-
 .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
 .w-name { font-size: 1.05rem; font-weight: 600; color: #0f172a; display: flex; align-items: center; gap: 8px; }
 .status-dot { width: 8px; height: 8px; background-color: #10b981; border-radius: 50%; display: inline-block; }
-
 .w-actions { display: flex; gap: 4px; }
 .icon-btn { background: transparent; border: none; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; color: #94a3b8; }
 .icon-btn.edit:hover { background: #f1f5f9; color: #2563eb; }
 .icon-btn.delete:hover { background: #fef2f2; color: #ef4444; }
-
 .card-footer { font-size: 0.8rem; color: #64748b; }
-
 .loading-state { text-align: center; padding: 40px; }
+
+.confirm-content { padding: 10px 0; font-size: 0.95rem; color: #334155; }
+.confirm-content p { margin: 0 0 8px 0; }
+.text-danger-sm { color: #ef4444; font-size: 0.8rem; }
+.danger-btn { background-color: #ef4444 !important; border-color: #ef4444 !important; color: white !important;}
+.danger-btn:hover { background-color: #dc2626 !important; border-color: #dc2626 !important; }
 </style>

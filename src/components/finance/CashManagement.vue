@@ -21,7 +21,7 @@
             <button class="action-btn edit-btn" @click="openEditCashboxModal(reg)" title="Редагувати касу">
               ✎
             </button>
-            <button class="action-btn delete-btn" @click="handleDeleteCashbox(reg.id, reg.name)" title="Видалити касу">
+            <button class="action-btn delete-btn" @click="promptDeleteCashbox(reg)" title="Видалити касу">
               ×
             </button>
           </div>
@@ -101,6 +101,21 @@
       </form>
     </BaseModal>
 
+    <BaseModal
+      :is-open="!!cashboxToDelete"
+      @close="cashboxToDelete = null"
+      title="Підтвердження видалення"
+    >
+      <div class="confirm-content">
+        <p>Ви впевнені, що хочете видалити касу <strong>"{{ cashboxToDelete?.name }}"</strong>?</p>
+        <p class="text-danger-sm">Цю дію неможливо скасувати. Переконайтесь, що по цій касі немає активних транзакцій.</p>
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="cashboxToDelete = null">Скасувати</BaseButton>
+        <BaseButton class="danger-btn" @click="confirmDeleteCashbox">Видалити</BaseButton>
+      </template>
+    </BaseModal>
+
   </div>
 </template>
 
@@ -108,7 +123,7 @@
 import { onMounted, ref, computed } from 'vue'
 import { useCartStore } from '@/stores/pos'
 import { useAuthStore } from '@/stores/auth'
-import { useWarehousesStore } from '@/stores/warehouses' 
+import { useWarehousesStore } from '@/stores/warehouses'
 import { USER_ROLES } from '@/constants/roles'
 import { formatCurrency } from '@/utils/formatters'
 import api from '@/api/axios'
@@ -166,6 +181,7 @@ const isCashboxModalOpen = ref(false)
 const isSubmittingCashbox = ref(false)
 const editingCashboxId = ref(null)
 const cashboxFormData = ref({ name: '', warehouse: '' })
+const cashboxToDelete = ref(null)
 
 const warehouseOptions = computed(() => {
   return warehousesStore.warehouses.map(w => ({
@@ -239,10 +255,14 @@ const submitCashbox = async () => {
   }
 }
 
-const handleDeleteCashbox = async (id, name) => {
-  if (confirm(`Ви впевнені, що хочете видалити касу "${name}"?`)) {
-    await cartStore.deleteCashbox(id)
-  }
+const promptDeleteCashbox = (cashbox) => {
+  cashboxToDelete.value = cashbox
+}
+
+const confirmDeleteCashbox = async () => {
+  if (!cashboxToDelete.value) return
+  await cartStore.deleteCashbox(cashboxToDelete.value.id)
+  cashboxToDelete.value = null
 }
 
 onMounted(() => {
@@ -291,4 +311,10 @@ onMounted(() => {
 .cashbox-form { display: flex; flex-direction: column; gap: 16px; min-width: 350px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
 @media (max-width: 640px) { .cashbox-form { min-width: 100%; } }
+
+.confirm-content { padding: 10px 0; font-size: 0.95rem; color: #334155; }
+.confirm-content p { margin: 0 0 8px 0; }
+.text-danger-sm { color: #ef4444; font-size: 0.8rem; }
+.danger-btn { background-color: #ef4444 !important; border-color: #ef4444 !important; color: white !important;}
+.danger-btn:hover { background-color: #dc2626 !important; border-color: #dc2626 !important; }
 </style>

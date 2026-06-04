@@ -85,7 +85,6 @@ import RepairsTable from '@/components/repairs/RepairsTable.vue'
 const repairsStore = useRepairsStore()
 const viewMode = ref('kanban')
 
-// СТЕЙТ ДЛЯ РЕДАГУВАННЯ ТА МОДАЛКИ
 const isModalOpen = ref(false)
 const isEditMode = ref(false)
 const selectedJob = ref(null)
@@ -97,7 +96,6 @@ const filters = ref({
   ordering: '-created_at'
 })
 
-// Динамічно генеруємо список з констант
 const statusOptions = [
   { value: '', label: 'Всі статуси' },
   ...Object.entries(REPAIR_STATUS_LABELS).map(([value, label]) => ({
@@ -133,7 +131,6 @@ const activeJobs = computed(() => {
   ).length
 })
 
-// --- ОБРОБНИКИ ДЛЯ МОДАЛКИ ---
 const openCreateModal = () => {
   isEditMode.value = false
   selectedJob.value = null
@@ -154,7 +151,7 @@ const handleSaveRepair = async (formData) => {
       await repairsStore.createJob(formData)
     }
     isModalOpen.value = false
-    applyFilters() 
+    applyFilters()
   } catch (error) {
     console.error('Помилка при збереженні:', error)
   }
