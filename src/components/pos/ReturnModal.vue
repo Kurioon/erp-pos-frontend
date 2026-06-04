@@ -38,6 +38,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import api from '@/api/axios'
 import { useCartStore } from '@/stores/pos' 
+import { useWarehousesStore } from '@/stores/warehouses'
 
 defineProps({
   isOpen: Boolean
@@ -46,6 +47,7 @@ defineProps({
 const emit = defineEmits(['close'])
 
 const cartStore = useCartStore()
+const warehousesStore = useWarehousesStore()
 const orderIdToReturn = ref('')
 const isLoading = ref(false)
 
@@ -78,6 +80,7 @@ const processReturn = async () => {
     }))
 
     await cartStore.fetchProducts()
+    await warehousesStore.fetchWarehouses()
 
     closeModal()
   } catch (error) {
