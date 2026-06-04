@@ -61,7 +61,7 @@
 import { ref, computed } from 'vue'
 import { useRepairsStore } from '@/stores/repairs'
 import { REPAIR_STATUSES } from '@/constants/repairs'
-// import RepairCard from '@/components/repairs/RepairCard.vue'
+import RepairCard from '@/components/repairs/RepairCard.vue'
 
 const repairsStore = useRepairsStore()
 const showFullArchive = ref(false)

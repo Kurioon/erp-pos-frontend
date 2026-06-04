@@ -104,20 +104,70 @@ export const useWarehousesStore = defineStore('warehouses', () => {
       isLoading.value = false
     }
   }
+const fetchProductMovement = async (productId) => {
+  try {
+    const response = await api.get(`/warehouse-stocks/movement/?product=${productId}`)
+    return response.data.results || response.data || []
+  } catch (error) {
+    console.error('Помилка завантаження історії руху:', error)
+    return []
+  }
+}
 
+const moveStock = async (payload) => {
+  isLoading.value = true
+  try {
+    await api.post('/warehouse-stocks/move/', {
+      product: payload.product_id,
+      from_warehouse: payload.from_warehouse,
+      to_warehouse: payload.to_warehouse,
+      quantity: Number(payload.quantity),
+    })
+
+    await fetchInventory()
+
+    window.dispatchEvent(
+      new CustomEvent('app-success', {
+        detail: { message: 'Товар успішно переміщено!', type: 'success' },
+      }),
+    )
+  } catch (error) {
+    console.error('Помилка переміщення товару:', error)
+    window.dispatchEvent(
+      new CustomEvent('api-error', {
+        detail: { message: 'Не вдалося перемістити товар. Перевірте залишки.', type: 'error' },
+      }),
+    )
+    throw error
+  } finally {
+    isLoading.value = false
+  }
+}
   const inventoryList = computed(() => {
     return products.value.map((product) => {
       const productStocks = stocks.value.filter((s) => s.nomenclature === product.id)
       const totalStock = productStocks.reduce((sum, s) => sum + Number(s.quantity || 0), 0)
 
+      const warehouseNames =
+        productStocks
+          .filter((s) => Number(s.quantity) > 0)
+          .map((s) => {
+            const w = warehouses.value.find((w) => w.id === s.warehouse)
+            return w ? w.name : `Склад #${s.warehouse}`
+          })
+          .join(', ') || 'Немає на складі'
+
       return {
         ...product,
-        category: product.unit || 'Загальна', // В БД нема категорій, використовуємо одиниці виміру як заглушку
-        retail_price: product.sale_price,
-        wholesale_price: product.sale_price, // Заглушка для опту
+        purchase_price: product.purchase_price || 0,
+        wholesale_price: product.wholesale_price || 0,
+        retail_price: product.retail_price || product.sale_price || 0,
         stock: totalStock,
+        stock_details: productStocks,
+        warehouse_names: warehouseNames,
       }
     })
+
   })
 
   return {
@@ -132,5 +182,7 @@ export const useWarehousesStore = defineStore('warehouses', () => {
     deleteWarehouse,
     fetchInventory,
     updateProductPrices,
+    fetchProductMovement,
+    moveStock,
   }
 })

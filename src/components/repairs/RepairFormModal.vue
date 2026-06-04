@@ -1,5 +1,5 @@
 <template>
-  <BaseModal :is-open="true" @close="$emit('close')" title="Новий ремонт">
+  <BaseModal :is-open="true" @close="$emit('close')" :title="editMode ? 'Редагувати ремонт' : 'Новий ремонт'">
     <form @submit.prevent="handleSubmit" class="repair-form">
       <BaseInput
         v-model="formData.device_name"
@@ -17,9 +17,9 @@
           placeholder="ПІБ клієнта"
           :error="customerNameError"
         />
-       <BaseInput
+        <BaseInput
           v-model="formData.customer_phone"
-          @input="validatePhone"
+          @input="handlePhoneInput"
           label="Телефон *"
           placeholder="+380..."
           :error="isSubmitted && !formData.customer_phone ? 'Обов\'язкове поле' : errors.customer_phone"
@@ -28,54 +28,110 @@
 
       <BaseInput
         v-model="formData.description"
+        @input="validateDescription"
         label="Несправність *"
-        placeholder="Опис проблеми"
-        :error="isSubmitted && !formData.description ? 'Обов\'язкове поле' : ''"
+        placeholder="Опис проблеми (мінімум 5 символів)"
+        :error="descriptionError"
       />
 
       <div class="form-row">
         <BaseInput
           v-model="formData.storage_cell"
+          @input="handleCellInput"
           label="Комірка зберігання *"
-          placeholder="A1, B3, R5..."
+          placeholder="A1, B3..."
           :error="isSubmitted && !formData.storage_cell ? 'Обов\'язкове поле' : ''"
         />
         <BaseInput
-          v-model.number="formData.price"
+          v-model="formData.price"
           type="number"
           label="Попередня вартість (₴)"
           placeholder="0"
         />
       </div>
 
-      <BaseInput label="Дата та час прийняття" :model-value="currentDate" disabled />
+      <BaseInput v-if="!editMode" label="Дата та час прийняття" :model-value="currentDate" disabled />
 
       <div class="modal-actions">
         <BaseButton variant="secondary" type="button" @click="$emit('close')">Скасувати</BaseButton>
-        <BaseButton variant="primary" type="submit" :disabled="hasErrors">Прийняти</BaseButton>
+        <BaseButton variant="primary" type="submit" :disabled="hasErrors">
+          {{ editMode ? 'Зберегти зміни' : 'Прийняти' }}
+        </BaseButton>
       </div>
     </form>
   </BaseModal>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 
+const props = defineProps({
+  editMode: Boolean,
+  jobData: Object
+})
+
 const emit = defineEmits(['close', 'submit'])
 
-const formData = ref({ device_name: '', customer_name: '', customer_phone: '', description: '', storage_cell: '', price: '' })
-const errors = ref({ customer_name: '', customer_phone: '' })
+const formData = ref({
+  device_name: '',
+  customer_name: '',
+  customer_phone: '+380',
+  description: '',
+  storage_cell: '',
+  price: ''
+})
+
+const errors = ref({ customer_name: '', customer_phone: '', description: '' })
 const isSubmitted = ref(false)
 
 const currentDate = new Date().toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
-const validateName = () => { errors.value.customer_name = /[0-9]/.test(formData.value.customer_name) ? 'Ім\'я не може містити цифри' : '' }
-const validatePhone = () => {
-  const phone = formData.value.customer_phone
-  errors.value.customer_phone = (/[^\d\s+\-()]/.test(phone) && phone !== '') ? 'Лише цифри та символи +, -, ()' : ''
+watch(() => props.jobData, (newJob) => {
+  if (props.editMode && newJob) {
+    formData.value = { ...newJob }
+  } else {
+    formData.value.customer_phone = '+380'
+  }
+}, { immediate: true })
+
+const validateName = () => {
+  errors.value.customer_name = /[0-9]/.test(formData.value.customer_name) ? 'Ім\'я не може містити цифри' : ''
+}
+
+const validateDescription = () => {
+  if (formData.value.description.length > 0 && formData.value.description.length < 5) {
+    errors.value.description = 'Мінімум 5 символів'
+  } else {
+    errors.value.description = ''
+  }
+}
+
+const handlePhoneInput = (event) => {
+  let val = event.target.value.replace(/[^\d+]/g, '')
+
+  if (val.length > 0 && !val.startsWith('+380')) {
+    if (val.startsWith('380')) val = '+' + val
+    else if (val.startsWith('0')) val = '+380' + val.slice(1)
+    else val = '+380'
+  }
+
+  if (val.length > 13) val = val.slice(0, 13)
+
+  formData.value.customer_phone = val
+
+  if (val.length > 0 && val.length < 13) {
+    errors.value.customer_phone = 'Введіть повний номер (+380...)'
+  } else {
+    errors.value.customer_phone = ''
+  }
+}
+
+const handleCellInput = (event) => {
+  let val = event.target.value.toUpperCase()
+  formData.value.storage_cell = val.replace(/[^A-ZА-ЯІЇЄҐ0-9-]/g, '')
 }
 
 const customerNameError = computed(() => {
@@ -84,12 +140,28 @@ const customerNameError = computed(() => {
   return ''
 })
 
-const hasErrors = computed(() => errors.value.customer_name !== '' || errors.value.customer_phone !== '')
+const descriptionError = computed(() => {
+  if (errors.value.description) return errors.value.description
+  if (isSubmitted.value && !formData.value.description) return 'Обов\'язкове поле'
+  return ''
+})
+
+const hasErrors = computed(() => errors.value.customer_name !== '' || errors.value.customer_phone !== '' || errors.value.description !== '')
 
 const handleSubmit = () => {
   isSubmitted.value = true
-  if (hasErrors.value || !formData.value.device_name || !formData.value.customer_name || !formData.value.customer_phone || !formData.value.storage_cell || !formData.value.description) return
-  emit('submit', { ...formData.value })
+
+  if (formData.value.description.length < 5) errors.value.description = 'Мінімум 5 символів'
+  if (formData.value.customer_phone.length < 13) errors.value.customer_phone = 'Введіть повний номер (+380...)'
+
+  if (hasErrors.value || formData.value.customer_phone.length < 13 || formData.value.description.length < 5 || !formData.value.device_name || !formData.value.customer_name || !formData.value.storage_cell) {
+    return
+  }
+
+  const finalData = { ...formData.value }
+  if (finalData.price) finalData.price = Number(finalData.price)
+
+  emit('submit', finalData)
 }
 
 const handleKeydown = (e) => { if (e.key === 'Escape') emit('close') }

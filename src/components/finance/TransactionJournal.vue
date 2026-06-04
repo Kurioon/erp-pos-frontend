@@ -185,9 +185,19 @@ const filteredTransactions = computed(() => {
 .right-actions { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
 .cashbox-filter-wrapper { width: 220px; }
 
-.table-container { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: white; }
+.table-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .shadow-premium { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 20px 25px -5px rgba(0, 0, 0, 0.03); }
-.finance-table { width: 100%; border-collapse: collapse; }
+
+.finance-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+
 .finance-table th { background-color: #f8fafc; padding: 16px; color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #e2e8f0; letter-spacing: 0.05em; }
 .finance-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; vertical-align: middle; color: #334155; }
 .table-row-hover:hover { background-color: #f8fafc; transition: background-color 0.15s; }

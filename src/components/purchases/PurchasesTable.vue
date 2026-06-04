@@ -104,13 +104,25 @@ const toggleRow = (id) => {
 </script>
 
 <style scoped>
-.table-container { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: white; }
-.purchases-table { width: 100%; border-collapse: collapse; }
+.table-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.purchases-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+
 .purchases-table th { background-color: #f8fafc; padding: 16px; color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; text-align: left; border-bottom: 1px solid #e2e8f0; letter-spacing: 0.05em; }
 .purchases-table td { padding: 18px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; vertical-align: middle; }
-.main-row { cursor: pointer; transition: background-color 0.2s ease; }
+.main-row { cursor: pointer; transition: background-color 0.2s ease, border-left 0.2s ease; border-left: 4px solid transparent; }
 .main-row:hover { background-color: #f8fafc; }
-.main-row.is-expanded { background-color: #f1f5f9; }
+.main-row.is-expanded { background-color: #eff6ff; border-left: 4px solid #3b82f6; }
+
 .text-muted { color: #64748b; }
 .text-dark { color: #0f172a; }
 .font-medium { font-weight: 500; }
@@ -118,28 +130,8 @@ const toggleRow = (id) => {
 .text-right { text-align: right; }
 .text-center { text-align: center; }
 .text-price { font-size: 1.05rem; }
-.actions-cell { width: 260px; }
-.edit-btn { background: transparent; border: 1px solid #cbd5e1; color: #475569; }
-.edit-btn:hover { background-color: #f1f5f9; color: #0f172a; }
-.approve-btn { background-color: #2563eb; border: 1px solid #2563eb; color: white; }
-.approve-btn:hover { background-color: #1d4ed8; }
-.chevron-btn svg { transition: transform 0.2s ease; }
-.chevron-btn svg.rotated { transform: rotate(180deg); color: #0f172a; }
-.expanded-row { background-color: #ffffff; }
-.expanded-cell { padding: 0 !important; }
-.details-container { padding: 24px 32px; background-color: #fafafa; border-bottom: 1px solid #e2e8f0; }
-.details-title { font-size: 0.75rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em; margin: 0 0 16px 0; }
-.details-table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
-.details-table th { background-color: #f8fafc; padding: 12px 16px; font-size: 0.75rem; color: #64748b; border-bottom: 1px solid #e2e8f0; }
-.details-table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-.details-table tr:last-child td { border-bottom: none; }
-.total-row { background-color: #f8fafc; }
-.total-price-val { font-size: 1.1rem; color: #2563eb !important; }
-.status-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
-.status-approved { background-color: #dcfce7; color: #166534; }
-.status-draft { background-color: #f1f5f9; color: #475569; }
-.status-received { background-color: #eff6ff; color: #1e40af; }
-.status-waiting { background-color: #fffbeb; color: #d97706; }
+.actions-cell { width: 260px; padding-right: 16px !important; }
+
 .actions-wrapper {
   display: flex;
   justify-content: flex-end;
@@ -162,14 +154,26 @@ const toggleRow = (id) => {
   white-space: nowrap;
 }
 
-.chevron-btn {
-  flex-shrink: 0;
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  padding: 4px;
-}
+.edit-btn { background: transparent; border: 1px solid #cbd5e1; color: #475569; }
+.edit-btn:hover { background-color: #f1f5f9; color: #0f172a; }
+.approve-btn { background-color: #2563eb; border: 1px solid #2563eb; color: white; }
+.approve-btn:hover { background-color: #1d4ed8; }
+.chevron-btn { flex-shrink: 0; background: transparent; border: none; color: #94a3b8; cursor: pointer; display: flex; align-items: center; padding: 4px; }
+.chevron-btn svg { transition: transform 0.2s ease; }
+.chevron-btn svg.rotated { transform: rotate(180deg); color: #2563eb; }
+
+.expanded-row { background-color: #f8fafc; }
+.expanded-cell { padding: 0 !important; border-left: 4px solid #3b82f6; }
+.details-container { padding: 24px 32px; border-bottom: 1px solid #e2e8f0; overflow-x: auto; }
+
+.details-title { font-size: 0.75rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em; margin: 0 0 16px 0; }
+.details-table { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-width: 500px; }
+.details-table th { background-color: #f8fafc; padding: 12px 16px; font-size: 0.75rem; color: #64748b; border-bottom: 1px solid #e2e8f0; }
+.details-table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
+.details-table tr:last-child td { border-bottom: none; }
+.total-row { background-color: #f8fafc; }
+.total-price-val { font-size: 1.1rem; color: #2563eb !important; }
+.status-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; display: inline-block; white-space: nowrap; }
+.status-approved { background-color: #dcfce7; color: #166534; }
+.status-draft { background-color: #f1f5f9; color: #475569; }
 </style>
