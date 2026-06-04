@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'https://erp-pos-system-2vll.onrender.com/api',
+  baseURL: import.meta.env.VITE_API_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -36,7 +36,7 @@ api.interceptors.response.use(
         if (refreshToken) {
           try {
             const response = await axios.post(
-              'https://erp-pos-system-2vll.onrender.com/api/auth/token/refresh/',
+              `${import.meta.env.VITE_API_URL}/auth/token/refresh/`,
               {
                 refresh: refreshToken,
               },
