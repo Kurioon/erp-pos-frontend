@@ -1,15 +1,3 @@
-<script setup>
-import { formatCurrency } from '@/utils/formatters'
-
-const props = defineProps({
-  metrics: {
-    type: Object,
-    required: true,
-    default: () => ({ revenue: 0, sales: 0, repairs: 0, lowStock: 0 })
-  }
-})
-</script>
-
 <template>
   <section class="metrics-row">
     <div class="metric-card">
@@ -18,11 +6,7 @@ const props = defineProps({
         <h2 class="metric-value">{{ formatCurrency(props.metrics.revenue, 'UAH') }}</h2>
       </div>
       <div class="metric-icon-box bg-blue-light">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"></line>
-          <line x1="12" y1="20" x2="12" y2="4"></line>
-          <line x1="6" y1="20" x2="6" y2="14"></line>
-        </svg>
+        <IconTrendingUp stroke="#2563eb" />
       </div>
     </div>
 
@@ -32,11 +16,7 @@ const props = defineProps({
         <h2 class="metric-value">{{ props.metrics.sales }}</h2>
       </div>
       <div class="metric-icon-box bg-green-light">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <path d="M16 10a4 4 0 0 1-8 0"></path>
-        </svg>
+        <IconShoppingBag stroke="#10b981" />
       </div>
     </div>
 
@@ -46,9 +26,7 @@ const props = defineProps({
         <h2 class="metric-value">{{ props.metrics.repairs }}</h2>
       </div>
       <div class="metric-icon-box bg-amber-light">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-        </svg>
+        <IconWrench stroke="#f59e0b" />
       </div>
     </div>
 
@@ -58,15 +36,27 @@ const props = defineProps({
         <h2 class="metric-value text-danger-val">{{ props.metrics.lowStock }}</h2>
       </div>
       <div class="metric-icon-box bg-red-light">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-          <line x1="12" y1="9" x2="12" y2="13"></line>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
-        </svg>
+        <IconAlertTriangle stroke="#ef4444" />
       </div>
     </div>
   </section>
 </template>
+
+<script setup>
+import { formatCurrency } from '@/utils/formatters'
+import IconTrendingUp from '@/components/icons/IconTrendingUp.vue'
+import IconShoppingBag from '@/components/icons/IconShoppingBag.vue'
+import IconWrench from '@/components/icons/IconWrench.vue'
+import IconAlertTriangle from '@/components/icons/IconAlertTriangle.vue'
+
+const props = defineProps({
+  metrics: {
+    type: Object,
+    required: true,
+    default: () => ({ revenue: 0, sales: 0, repairs: 0, lowStock: 0 })
+  }
+})
+</script>
 
 <style scoped>
 .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
