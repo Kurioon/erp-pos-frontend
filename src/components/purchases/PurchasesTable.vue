@@ -13,17 +13,17 @@
       </thead>
       <tbody>
         <template v-for="order in props.purchases" :key="order.id">
-          <tr class="main-row" :class="{ 'is-expanded': expandedRowId === order.id }" @click="toggleRow(order.id)">
+          <tr v-if="order" class="main-row" :class="{ 'is-expanded': expandedRowId === order.id }" @click="toggleRow(order.id)">
             <td class="text-muted font-medium">{{ order.id }}</td>
-            <td class="font-bold text-dark">{{ order.supplier }}</td>
-            <td class="text-muted">{{ formatDate(order.date) }}</td>
+            <td class="font-bold text-dark">{{ order.supplier || 'Не вказано' }}</td>
+            <td class="text-muted">{{ order.date ? formatDate(order.date) : '—' }}</td>
             <td>
               <span class="status-badge" :class="resolveStatusClass(order.status)">
                 {{ resolveStatusLabel(order.status) }}
               </span>
             </td>
             <td class="font-bold text-dark text-price">
-              {{ formatCurrency(order.total_amount || 0, 'UAH') }}
+              {{ formatCurrency(getOrderTotal(order.id) || 0, 'UAH') }}
             </td>
             <td class="text-right actions-cell" @click.stop>
               <div class="actions-wrapper">
@@ -45,11 +45,11 @@
             </td>
           </tr>
 
-          <tr v-if="expandedRowId === order.id" class="expanded-row">
+          <tr v-if="expandedRowId === order.id && order.items" class="expanded-row">
             <td colspan="6" class="expanded-cell">
               <div class="details-container">
                 <p class="details-title">ПОЗИЦІЇ ЗАМОВЛЕННЯ</p>
-                <table class="details-table">
+                <table v-if="order.items && order.items.length > 0" class="details-table">
                   <thead>
                     <tr>
                       <th>Товар</th>
@@ -60,19 +60,28 @@
                   </thead>
                   <tbody>
                     <tr v-for="(item, idx) in order.items" :key="idx">
-                      <td class="font-medium text-dark">{{ item.name }}</td>
-                      <td class="text-center text-muted">{{ item.qty }} шт</td>
+                      <td class="font-medium text-dark">{{ item.name || 'Невідомий товар' }}</td>
+                      <td class="text-center text-muted">{{ item.qty || 0 }} шт</td>
                       <td class="text-right text-muted">{{ formatCurrency(item.price || 0, 'UAH') }}</td>
-                      <td class="text-right font-bold text-dark">{{ formatCurrency((item.qty * item.price) || 0, 'UAH') }}</td>
+                      <td class="text-right font-bold text-dark">{{ formatCurrency(((item.qty || 0) * (item.price || 0)) || 0, 'UAH') }}</td>
                     </tr>
                     <tr class="total-row">
                       <td colspan="3" class="text-right font-medium text-muted">Разом:</td>
                       <td class="text-right font-bold text-dark total-price-val">
-                        {{ formatCurrency(order.total_amount || 0, 'UAH') }}
+                        {{ formatCurrency(getOrderTotal(order.id) || 0, 'UAH') }}
                       </td>
                     </tr>
                   </tbody>
                 </table>
+                <div v-else class="empty-items-msg">Немає позицій у замовленні</div>
+                
+                <!-- Отладка: показуємо розбіжність, якщо вона існує -->
+                <div v-if="getDiscrepancyInfo(order).hasDiscrepancy" class="discrepancy-warning">
+                  <strong> Увага:</strong> Розбіжність у сумі замовлення!
+                  <br>API передав: {{ formatCurrency(getDiscrepancyInfo(order).apiTotal, 'UAH') }}
+                  <br>Вичислено з товарів: {{ formatCurrency(getDiscrepancyInfo(order).calcTotal, 'UAH') }}
+                  <br>Різниця: {{ formatCurrency(getDiscrepancyInfo(order).discrepancy, 'UAH') }}
+                </div>
               </div>
             </td>
           </tr>
@@ -83,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { PURCHASE_STATUS_LABELS } from '@/constants/purchases'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 
@@ -96,6 +105,20 @@ const props = defineProps({
 
 const emit = defineEmits(['edit', 'approve'])
 const expandedRowId = ref(null)
+
+// Кешуємо обчислену суму для кожного замовлення
+const orderTotalsCache = computed(() => {
+  const cache = {}
+  props.purchases.forEach(order => {
+    cache[order.id] = calculateOrderTotal(order.items)
+  })
+  return cache
+})
+
+// Функція для отримання обчисленої суми замовлення
+const getOrderTotal = (orderId) => {
+  return orderTotalsCache.value[orderId] || 0
+}
 
 const toggleRow = (id) => {
   expandedRowId.value = expandedRowId.value === id ? null : id
@@ -111,7 +134,29 @@ const resolveStatusClass = (status) => {
 const resolveStatusLabel = (status) => {
   return PURCHASE_STATUS_LABELS[status] || status || 'Невідомо'
 }
+
+// Функция для вычисления суммы из items
+const calculateOrderTotal = (items) => {
+  return (items || []).reduce((sum, item) => {
+    return sum + (Number(item.qty || 0) * Number(item.price || 0))
+  }, 0)
+}
+
+// Функция для обнаружения расхождений между API и вычисленной суммой
+const getDiscrepancyInfo = (order) => {
+  const apiTotal = Number(order.total_amount || 0)
+  const calcTotal = calculateOrderTotal(order.items)
+  const discrepancy = Math.abs(apiTotal - calcTotal)
+  
+  if (discrepancy > 0.01) { // Допуск на погрешность ±0,01
+    console.warn(` Розбіжність у замовленні #${order.id}: API=${apiTotal}, вичислено=${calcTotal}, різниця=${discrepancy}`)
+    return { hasDiscrepancy: true, discrepancy, apiTotal, calcTotal }
+  }
+  
+  return { hasDiscrepancy: false, discrepancy: 0, apiTotal, calcTotal }
+}
 </script>
+
 
 <style scoped>
 .table-container { border: 1px solid #e2e8f0; border-radius: 12px; background: white; width: 100%; max-width: 100%; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -156,4 +201,15 @@ const resolveStatusLabel = (status) => {
 .status-draft { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;}
 .status-waiting { background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a;}
 .status-approved { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0;}
+.empty-items-msg { padding: 32px; text-align: center; color: #94a3b8; font-size: 0.95rem; background: white; border-radius: 8px; }
+.discrepancy-warning { 
+  margin-top: 16px; 
+  padding: 12px 16px; 
+  background-color: #fef3c7; 
+  border-left: 4px solid #f59e0b; 
+  border-radius: 6px; 
+  font-size: 0.9rem; 
+  color: #92400e; 
+  line-height: 1.6;
+}
 </style>

@@ -39,40 +39,58 @@ export const useProcurementStore = defineStore('procurement', () => {
       }
 
       orders.value = fetchedOrders.map((order) => {
-        let supplierName = order.supplier_name || order.supplier || 'Невідомий постачальник'
-        if (
-          supplierName === 'Невідомий постачальник' &&
-          order.comment_ttn &&
-          order.comment_ttn.includes('Постачальник:')
-        ) {
+        // Трансформуємо товари
+        const transformedItems = (order.items || []).map((item) => {
+          let prodId = item.product
+          let prodName = item.product_name || item.name || item.title || ''
+
+          if (typeof item.product === 'object' && item.product !== null) {
+            prodName = item.product.name || item.product.title
+            prodId = item.product.id
+          }
+
+          const productObj = cartStore.products.find((p) => p.id === prodId)
+
+          return {
+            ...item,
+            product: prodId,
+            name:
+              prodName || (productObj ? productObj.name || productObj.title : `Товар #${prodId}`),
+            qty: Number(item.quantity || item.qty || 0),
+            price: Number(item.price || 0),
+          }
+        })
+
+        // Обробляємо постачальника: шукаємо в 3 місцях
+        let supplierName = order.supplier_name || order.supplier || null
+        
+        // Якщо постачальник не знайдено - шукаємо в comment_ttn
+        if (!supplierName && order.comment_ttn && order.comment_ttn.includes('Постачальник:')) {
           const match = order.comment_ttn.match(/Постачальник:\s*(.*?)\s*\|/)
           if (match) supplierName = match[1]
         }
+
+        // Fallback значення
+        if (!supplierName) {
+          supplierName = 'Невідомий постачальник'
+        }
+
+        // Динамично обчислюємо total_amount на основі items
+        // Якщо бекенд не передав total_amount, то рахуємо суму товарів
+        const calculatedTotal = transformedItems.reduce((sum, item) => {
+          return sum + (Number(item.qty || 0) * Number(item.price || 0))
+        }, 0)
+
+        const totalAmount = calculatedTotal
 
         return {
           ...order,
           supplier: supplierName,
           date: order.created_at,
-          items: (order.items || []).map((item) => {
-            let prodId = item.product
-            let prodName = item.product_name || item.name || item.title || ''
-
-            if (typeof item.product === 'object' && item.product !== null) {
-              prodName = item.product.name || item.product.title
-              prodId = item.product.id
-            }
-
-            const productObj = cartStore.products.find((p) => p.id === prodId)
-
-            return {
-              ...item,
-              product: prodId,
-              name:
-                prodName || (productObj ? productObj.name || productObj.title : `Товар #${prodId}`),
-              qty: Number(item.quantity || item.qty || 0),
-              price: Number(item.price || 0),
-            }
-          }),
+          items: transformedItems,
+          total_amount: totalAmount,
+          // Додаємо recalculated_total для дебагу (щоб знати, яка сума виходить з items)
+          recalculated_total: calculatedTotal,
         }
       })
     } catch (error) {
