@@ -29,7 +29,7 @@ api.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
 
-      if (status === 401 && !originalRequest._retry) {
+      if (status === 401 && !originalRequest._retry && !originalRequest.url.includes('login')) {
         originalRequest._retry = true
         const refreshToken = localStorage.getItem('refreshToken')
 
