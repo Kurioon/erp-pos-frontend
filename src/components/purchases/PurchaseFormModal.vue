@@ -106,10 +106,19 @@ const localOrder = ref({
 
 watch(() => props.orderData, (newData) => {
   if (props.editMode && newData) {
+    // Трансформуємо дату правильно: якщо це об'єкт Date, то .toISOString()
+    let dateStr = ''
+    if (newData.date) {
+      const dateObj = new Date(newData.date)
+      dateStr = dateObj.toISOString().split('T')[0]
+    } else {
+      dateStr = new Date().toISOString().split('T')[0]
+    }
+    
     localOrder.value = {
       supplier: newData.supplier || '',
-      date: newData.date ? String(newData.date).split('T')[0] : new Date().toISOString().split('T')[0],
-      items: newData.items && newData.items.length > 0
+      date: dateStr,
+      items: newData.items && Array.isArray(newData.items) && newData.items.length > 0
         ? newData.items.map(item => ({
             product_id: item.product ? Number(item.product) : '',
             qty: Number(item.qty || item.quantity || 1),

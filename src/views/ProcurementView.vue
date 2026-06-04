@@ -31,6 +31,9 @@
       <div v-if="procurementStore.isLoading && procurementStore.orders.length === 0" class="loading-state">
         Завантаження закупівель...
       </div>
+      <div v-else-if="!procurementStore.orders || procurementStore.orders.length === 0" class="loading-state">
+        Закупівель не знайдено
+      </div>
       <PurchasesTable
         v-else
         :purchases="procurementStore.orders"
