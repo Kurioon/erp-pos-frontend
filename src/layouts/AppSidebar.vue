@@ -2,8 +2,8 @@
   <aside class="sidebar" :class="{ 'mobile-open': isMobileOpen }">
 
     <div class="logo-section">
-      <div class="logo-badge">ERP</div>
-      <span class="logo-brand-text">RetailPro</span>
+      <img src="/favicon.png" alt="SA2 Logo" class="sidebar-logo" />
+      <span class="logo-brand-text">SA2</span>
     </div>
 
     <nav class="nav-menu">
@@ -93,14 +93,11 @@ const filteredMenuItems = computed(() => {
   user-select: none;
 }
 
-.logo-badge {
-  background-color: #2563eb;
-  color: #ffffff;
-  font-size: 0.75rem;
-  font-weight: 800;
-  padding: 4px 8px;
+.sidebar-logo {
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
-  letter-spacing: 0.05em;
+  object-fit: cover;
 }
 
 .logo-brand-text {
