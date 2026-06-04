@@ -29,7 +29,7 @@ api.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
 
-      if (status === 401 && !originalRequest._retry) {
+      if (status === 401 && !originalRequest._retry && !originalRequest.url.includes('login')) {
         originalRequest._retry = true
         const refreshToken = localStorage.getItem('refreshToken')
 
@@ -55,6 +55,12 @@ api.interceptors.response.use(
             window.location.href = '/login'
             return Promise.reject(refreshError)
           }
+        } else {
+          localStorage.removeItem('token')
+          localStorage.removeItem('refreshToken')
+          localStorage.removeItem('user')
+          window.location.href = '/login'
+          return Promise.reject(error)
         }
       }
 

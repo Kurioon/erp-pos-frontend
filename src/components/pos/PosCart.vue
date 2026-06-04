@@ -113,6 +113,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useCartStore } from '@/stores/pos'
+import { useWarehousesStore } from '@/stores/warehouses'
 import { formatCurrency } from '@/utils/formatters'
 import api from '@/api/axios'
 
@@ -122,6 +123,7 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import IconReceipt from '@/components/icons/IconReceipt.vue'
 
 const cartStore = useCartStore()
+const warehousesStore = useWarehousesStore()
 const paymentType = ref('full')
 const isSubmitting = ref(false)
 const showReceiptModal = ref(false)
@@ -202,6 +204,7 @@ const handleCheckout = async () => {
     cartStore.clearCart()
     paymentType.value = 'full'
     await cartStore.fetchProducts()
+    await warehousesStore.fetchWarehouses()
 
   } catch (error) {
     console.error('Помилка оформлення:', error)
