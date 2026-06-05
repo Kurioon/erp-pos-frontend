@@ -1,10 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api/axios'
+import { useCartStore } from '@/stores/pos'
 
 export const useFinanceStore = defineStore('finance', () => {
   const transactions = ref([])
+  const partialOrders = ref([]) // Список замовлень, що чекають дооплати
   const isLoading = ref(false)
+  const isSubmittingPrepay = ref(false)
   const pagination = ref({ count: 0, next: null, previous: null })
 
   const currentBalance = computed(() => {
@@ -46,13 +49,53 @@ export const useFinanceStore = defineStore('finance', () => {
     }
   }
 
+  const fetchPartialOrders = async () => {
+    try {
+      const response = await api.get('/orders/?status=partial')
+      partialOrders.value = response.data.results || response.data || []
+    } catch (error) {
+      console.error('Помилка завантаження часткових замовлень:', error)
+    }
+  }
+
+  const submitPrepay = async (orderId, amount, cashboxId) => {
+    isSubmittingPrepay.value = true
+    try {
+      await api.post(`/orders/${orderId}/prepay/`, {
+        amount: Number(amount),
+        cash_register: cashboxId,
+        currency: 'UAH'
+      })
+
+      window.dispatchEvent(
+        new CustomEvent('app-success', {
+          detail: { message: 'Дооплату успішно внесено!', type: 'success' },
+        })
+      )
+
+      await fetchPartialOrders()
+      await fetchTransactions()
+
+      const cartStore = useCartStore()
+      await cartStore.fetchCashboxes() 
+
+    } catch (error) {
+      console.error('Помилка дооплати:', error)
+      window.dispatchEvent(
+        new CustomEvent('api-error', {
+          detail: { message: 'Не вдалося провести дооплату', type: 'error' },
+        })
+      )
+    } finally {
+      isSubmittingPrepay.value = false
+    }
+  }
+
   const addTransaction = async (payload) => {
     isLoading.value = true
     try {
       const response = await api.post('/transactions/', payload)
-
       transactions.value.unshift(response.data)
-
       window.dispatchEvent(
         new CustomEvent('app-success', {
           detail: { message: 'Транзакцію успішно проведено!', type: 'success' },
@@ -104,12 +147,16 @@ export const useFinanceStore = defineStore('finance', () => {
 
   return {
     transactions,
+    partialOrders,
     isLoading,
+    isSubmittingPrepay,
     pagination,
     currentBalance,
     totalIncome,
     totalExpense,
     fetchTransactions,
+    fetchPartialOrders,
+    submitPrepay,
     addTransaction,
     exportCsv,
   }
