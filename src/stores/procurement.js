@@ -15,14 +15,30 @@ export const useProcurementStore = defineStore('procurement', () => {
   const fetchOrders = async (filters = {}) => {
     isLoading.value = true
     try {
-      const params = new URLSearchParams()
-      params.append('order_type', 'purchase')
-      if (filters.status) params.append('status', filters.status)
-      if (filters.ordering) params.append('ordering', filters.ordering)
+      // 1. Формуємо параметри запиту
+      const params = { order_type: 'purchase' }
+      if (filters.status) params.status = filters.status
+      if (filters.ordering) params.ordering = filters.ordering
 
-      const response = await api.get(`/orders/?${params.toString()}`)
-      let fetchedOrders = response.data.results || response.data || []
+      let allOrders = []
+      let page = 1
 
+      // 2. Збираємо всі сторінки пагінації (Вирішення Завдання #3)
+      while (true) {
+        params.page = page
+        const { data } = await api.get('/orders/', { params })
+        
+        const results = data.results || data || []
+        allOrders = allOrders.concat(results)
+
+        // Якщо наступної сторінки немає — виходимо з циклу
+        if (!data.next) break
+        page++
+      }
+
+      let fetchedOrders = allOrders
+
+      // Залишаємо локальну фільтрацію/сортування для страховки
       if (filters.status) {
         fetchedOrders = fetchedOrders.filter((o) => o.status === filters.status)
       }
@@ -54,42 +70,27 @@ export const useProcurementStore = defineStore('procurement', () => {
           return {
             ...item,
             product: prodId,
-            name:
-              prodName || (productObj ? productObj.name || productObj.title : `Товар #${prodId}`),
+            name: prodName || (productObj ? productObj.name || productObj.title : `Товар #${prodId}`),
             qty: Number(item.quantity || item.qty || 0),
             price: Number(item.price || 0),
           }
         })
 
-        // Обробляємо постачальника: шукаємо в 3 місцях
-        let supplierName = order.supplier_name || order.supplier || null
-        
-        // Якщо постачальник не знайдено - шукаємо в comment_ttn
-        if (!supplierName && order.comment_ttn && order.comment_ttn.includes('Постачальник:')) {
-          const match = order.comment_ttn.match(/Постачальник:\s*(.*?)\s*\|/)
-          if (match) supplierName = match[1]
-        }
+        // Обробляємо постачальника (Вирішення Завдання #1)
+        const supplierName = order.supplier_name || 'Невідомий постачальник'
 
-        // Fallback значення
-        if (!supplierName) {
-          supplierName = 'Невідомий постачальник'
-        }
-
-        // Динамично обчислюємо total_amount на основі items
-        // Якщо бекенд не передав total_amount, то рахуємо суму товарів
+        // Динамічно обчислюємо суму
         const calculatedTotal = transformedItems.reduce((sum, item) => {
           return sum + (Number(item.qty || 0) * Number(item.price || 0))
         }, 0)
 
-        const totalAmount = calculatedTotal
-
         return {
           ...order,
-          supplier: supplierName,
+          supplier_id: order.supplier, // ID для збереження
+          supplier: supplierName,      // Текстова назва для UI
           date: order.created_at,
           items: transformedItems,
-          total_amount: totalAmount,
-          // Додаємо recalculated_total для дебагу (щоб знати, яка сума виходить з items)
+          total_amount: calculatedTotal,
           recalculated_total: calculatedTotal,
         }
       })
@@ -112,7 +113,8 @@ export const useProcurementStore = defineStore('procurement', () => {
         order_type: 'purchase',
         status: PURCHASE_STATUSES.DRAFT,
         total_amount: payload.total_amount,
-        comment_ttn: payload.comment_ttn,
+        supplier: payload.supplier, // Передаємо ID постачальника
+        comment_ttn: payload.comment_ttn || '',
       })
 
       const newOrderId = orderResponse.data.id
@@ -174,7 +176,8 @@ export const useProcurementStore = defineStore('procurement', () => {
 
       await api.patch(`/orders/${id}/`, {
         total_amount: payload.total_amount,
-        comment_ttn: payload.comment_ttn,
+        supplier: payload.supplier, // Оновлюємо ID постачальника
+        comment_ttn: payload.comment_ttn || '',
       })
 
       await fetchOrders()
