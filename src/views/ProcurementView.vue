@@ -34,11 +34,12 @@
       <div v-else-if="!procurementStore.orders || procurementStore.orders.length === 0" class="loading-state">
         Закупівель не знайдено
       </div>
+
       <PurchasesTable
         v-else
         :purchases="procurementStore.orders"
         @edit="openEditModal"
-        @approve="approveOrder"
+        @approve="openReceiveModal"
       />
     </main>
 
@@ -52,6 +53,13 @@
       @add-supplier="handleAddSupplier"
       @save="handleSaveOrder"
     />
+
+    <ReceiveOrderModal
+      :is-open="isReceiveModalOpen"
+      :order="orderToReceive"
+      @close="closeReceiveModal"
+      @confirm="handleReceiveConfirm"
+    />
   </div>
 </template>
 
@@ -63,6 +71,8 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import PurchasesTable from '@/components/purchases/PurchasesTable.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
+import ReceiveOrderModal from '@/components/orders/ReceiveOrderModal.vue'
+import { useWarehousesStore } from '@/stores/warehouses'
 
 const procurementStore = useProcurementStore()
 const suppliersList = ref(['Apple Distribution Ukraine', 'Samsung Electronics Ukraine', 'Lenovo Ukraine', 'Xiaomi Official'])
@@ -70,6 +80,11 @@ const suppliersList = ref(['Apple Distribution Ukraine', 'Samsung Electronics Uk
 const isModalOpen = ref(false)
 const isEditMode = ref(false)
 const selectedOrder = ref(null)
+
+const warehousesStore = useWarehousesStore()
+
+const isReceiveModalOpen = ref(false)
+const orderToReceive = ref(null)
 
 const filters = ref({
   status: '',
@@ -127,9 +142,31 @@ const handleSaveOrder = async (payload) => {
   applyFilters()
 }
 
-const approveOrder = async (id) => {
-  if (confirm('Затвердити закупівлю? Товари будуть зараховані на склад.')) {
-    await procurementStore.approveOrder(id)
+const openReceiveModal = (id) => {
+  // Компонент таблиці передає тільки ID, тому робимо об'єкт-заглушку для модалки
+  orderToReceive.value = { id } 
+  isReceiveModalOpen.value = true
+}
+
+const closeReceiveModal = () => {
+  isReceiveModalOpen.value = false
+  orderToReceive.value = null
+}
+
+const handleReceiveConfirm = async ({ orderId, warehouseId }) => {
+  try {
+    // Робимо правильний запит на прийомку
+    await api.post(`/orders/${orderId}/receive/`, { warehouse: warehouseId })
+    closeReceiveModal()
+
+    // 1. Оновлюємо статус в поточній таблиці
+    applyFilters() 
+    
+
+    // alert('Товари успішно прийняті на склад!') // Можеш розкоментувати за бажанням
+  } catch (error) {
+    console.error('Помилка прийомки:', error)
+    alert('Помилка прийомки. Перевірте консоль.')
   }
 }
 </script>
