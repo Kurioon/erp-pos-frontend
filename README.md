@@ -1,44 +1,95 @@
-# .
+# Kurioon ERP & POS System (Frontend)
 
-This template should help get you started developing with Vue 3 in Vite.
+Сучасний клієнтський односторінковий додаток (SPA) для комплексної веб-орієнтованої ERP-системи. Проєкт розроблено для автоматизації бізнес-процесів: управління касами (POS), складським обліком, фінансами, закупівлями та сервісним центром (ремонтами).
 
-## Recommended IDE Setup
+## Технологічний стек
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- **Фреймворк:** [Vue 3](https://vuejs.org/) (Composition API / `<script setup>`)
+- **Збірка:** [Vite](https://vitejs.dev/)
+- **Управління станом:** [Pinia](https://pinia.vuejs.org/)
+- **Маршрутизація:** [Vue Router](https://router.vuejs.org/)
+- **Мережеві запити:** [Axios](https://axios-http.com/) (з налаштованими інтерцепторами для JWT-токенів)
+- **Робота з датами:** [Day.js](https://day.js.org/)
+- **Тестування:** - Unit: [Vitest](https://vitest.dev/)
+  - E2E: [Playwright](https://playwright.dev/)
+- **UI-компоненти:** Кастомний UI-kit, задокументований у [Storybook](https://storybook.js.org/)
+- **Лінтери та форматування:** ESLint, Oxlint, Prettier
 
-## Recommended Browser Setup
+## Основні модулі системи
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+- **Дашборд:** Аналітика, графіки виручки, моніторинг критичних залишків на складах.
+- **POS-термінал:** Робоче місце касира. Кошик, каталог, розрахунок передоплати/боргу, генерація фіскальних чеків (PDF) та обробка повернень.
+- **Склади:** Управління номенклатурою, перегляд історії руху товарів, зміна цін (закупівельні, оптові, роздрібні) та внутрішні переміщення.
+- **Закупівлі:** Формування замовлень постачальникам та прийомка товарів на склади.
+- **Ремонти (Service Desk):** Облік техніки в ремонті. Підтримка двох режимів перегляду: таблиця та Kanban-дошка (з Drag & Drop).
+- **Фінанси:** Журнал транзакцій, управління касами (Cash Management), курси валют та облік очікуваних дооплат.
 
-## Customize configuration
+## Встановлення та запуск
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+### 1. Вимоги
+- [Node.js](https://nodejs.org/) (версія 20.19.0+ або 22.12.0+)
+- npm / yarn / pnpm
 
-## Project Setup
+### 2. Клонування репозиторію
+```sh
+git clone https://github.com/Kurioon/erp-pos-frontend
+cd kurioon-erp-pos-frontend
+
+```
+
+### 3. Встановлення залежностей
 
 ```sh
 npm install
+
 ```
 
-### Compile and Hot-Reload for Development
+### 4. Запуск сервера для розробки
 
 ```sh
 npm run dev
+
 ```
 
-### Compile and Minify for Production
+Додаток буде доступний за адресою: `http://localhost:5173`
 
-```sh
-npm run build
+## 🛠 Доступні скрипти (npm scripts)
+
+* `npm run dev` — запуск локального Vite-сервера з Hot-Module Replacement (HMR).
+* `npm run build` — оптимізована збірка проєкту для продакшену (у папку `/dist`).
+* `npm run preview` — локальний запуск зібраного продакшен-білда для перевірки.
+* `npm run lint` — перевірка коду лінтерами (ESLint + Oxlint).
+* `npm run format` — форматування коду за допомогою Prettier.
+* `npm run test:unit` — запуск юніт-тестів через Vitest.
+* `npm run test:e2e` — запуск наскрізних тестів (End-to-End) через Playwright.
+* `npm run storybook` — запуск локального сервера Storybook для розробки та тестування UI-компонентів.
+* `npm run build-storybook` — збірка документації Storybook у статику.
+
+## 📁 Структура проєкту
+
+```text
+src/
+├── api/          # Налаштування Axios та інтерцепторів
+├── components/   # Vue компоненти, розбиті за доменами (dashboard, finance, pos тощо)
+│   ├── icons/    # SVG іконки
+│   └── ui/       # Базові (перевикористовувані) компоненти (BaseButton, BaseInput...)
+├── constants/    # Константи (ролі, статуси, типи транзакцій)
+├── layouts/      # Глобальні обгортки (Sidebar, Header, DefaultLayout)
+├── router/       # Конфігурація Vue Router та Navigation Guards (захист маршрутів)
+├── stores/       # Pinia-стори (бізнес-логіка та стан додатку)
+├── utils/        # Допоміжні функції (форматування дат, валют тощо)
+├── views/        # Головні сторінки-контейнери
+└── main.js       # Точка входу в додаток
+
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+## 🔐 Ролі та доступи
 
-```sh
-npm run lint
+Система підтримує розмежування прав на базі JWT. Маршрути захищені за допомогою метаданих роутера (`meta.allowedRoles`):
+
+* **Admin (`admin`)**: Повний доступ до всіх розділів (Дашборд, Фінанси, Закупівлі, Налаштування курсів валют тощо).
+* **Seller (`seller`)**: Обмежений доступ. Дозволено працювати лише з POS-терміналом, складами та ремонтами.
+
+```
+
 ```
