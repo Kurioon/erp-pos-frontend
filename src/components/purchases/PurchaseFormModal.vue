@@ -89,7 +89,7 @@ const props = defineProps({
   isOpen: Boolean,
   editMode: Boolean,
   orderData: Object,
-  suppliers: Array // Тепер це масив об'єктів [{ id, name, ... }]
+  suppliers: Array
 })
 
 const emit = defineEmits(['close', 'save', 'add-supplier'])
@@ -99,13 +99,14 @@ const isAddingNewSupplier = ref(false)
 const newSupplierName = ref('')
 
 const localOrder = ref({
-  supplier: null, // Зберігаємо ID
+  supplier: '',
   date: new Date().toISOString().split('T')[0],
   items: [{ product_id: '', qty: 1, price: 0 }]
 })
 
 watch(() => props.orderData, (newData) => {
   if (props.editMode && newData) {
+    // Трансформуємо дату правильно: якщо це об'єкт Date, то .toISOString()
     let dateStr = ''
     if (newData.date) {
       const dateObj = new Date(newData.date)
@@ -115,7 +116,7 @@ watch(() => props.orderData, (newData) => {
     }
     
     localOrder.value = {
-      supplier: newData.supplier_id || null, // Підставляємо ID з бекенду
+      supplier: newData.supplier || '',
       date: dateStr,
       items: newData.items && Array.isArray(newData.items) && newData.items.length > 0
         ? newData.items.map(item => ({
@@ -127,7 +128,7 @@ watch(() => props.orderData, (newData) => {
     }
   } else if (!props.editMode) {
     localOrder.value = {
-      supplier: null,
+      supplier: '',
       date: new Date().toISOString().split('T')[0],
       items: [{ product_id: '', qty: 1, price: 0 }]
     }
@@ -140,17 +141,25 @@ onMounted(async () => {
   }
 })
 
+// === АВТОМАТИЧНЕ ПІДСТАВЛЕННЯ ЦІНИ ===
 const handleProductChange = (item) => {
   if (!item.product_id) return
+
+  // Шукаємо обраний товар у каталозі
   const product = cartStore.products.find(p => p.id === item.product_id)
+
   if (product) {
+    // Підставляємо закупівельну ціну (purchase_price). Якщо її нема - звичайну ціну, або 0.
     item.price = Number(product.purchase_price || product.price || 0)
   }
 }
 
-// Формуємо список з ID та Name
 const supplierOptions = computed(() => {
-  return props.suppliers.map(s => ({ value: s.id, label: s.name }))
+  const opts = props.suppliers.map(s => ({ value: s, label: s }))
+  if (localOrder.value.supplier && !props.suppliers.includes(localOrder.value.supplier)) {
+    opts.unshift({ value: localOrder.value.supplier, label: localOrder.value.supplier })
+  }
+  return opts
 })
 
 const productOptions = computed(() => cartStore.products.map(p => ({ value: p.id, label: p.title || p.name })))
@@ -158,13 +167,10 @@ const productOptions = computed(() => cartStore.products.map(p => ({ value: p.id
 const handleAddNewSupplier = () => {
   const cleanName = newSupplierName.value.trim()
   if (!cleanName) return
-  
-  // Передаємо callback для отримання нового ID
-  emit('add-supplier', cleanName, (newSupplierId) => {
-    localOrder.value.supplier = newSupplierId
-    newSupplierName.value = ''
-    isAddingNewSupplier.value = false
-  })
+  emit('add-supplier', cleanName)
+  localOrder.value.supplier = cleanName
+  newSupplierName.value = ''
+  isAddingNewSupplier.value = false
 }
 
 const addFormItem = () => localOrder.value.items.push({ product_id: '', qty: 1, price: 0 })
@@ -173,15 +179,13 @@ const removeFormItem = (index) => { if (localOrder.value.items.length > 1) local
 const formTotalSum = computed(() => localOrder.value.items.reduce((sum, item) => sum + (item.qty * item.price || 0), 0))
 
 const isFormValid = computed(() => {
-  // Перевірка наявності supplier (id)
-  return !!localOrder.value.supplier && localOrder.value.items.every(i => !!i.product_id && i.qty > 0)
+  return localOrder.value.supplier !== '' && localOrder.value.items.every(i => i.product_id !== '' && i.qty > 0)
 })
 
 const submitForm = () => {
   if (!isFormValid.value) return
   const payload = {
-    supplier: localOrder.value.supplier, // Передаємо ID
-    comment_ttn: `Дата: ${localOrder.value.date}`, // Прибрали запис постачальника
+    comment_ttn: `Постачальник: ${localOrder.value.supplier} | Дата: ${localOrder.value.date}`,
     total_amount: formTotalSum.value,
     items: localOrder.value.items.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price }))
   }
@@ -191,26 +195,65 @@ const submitForm = () => {
 
 <style scoped>
 * { box-sizing: border-box; }
-.purchase-modal-wrapper { display: flex; flex-direction: column; gap: 20px; width: 100%; }
-.form-row-top { display: flex; flex-wrap: wrap; gap: 16px; }
-.form-group { flex: 1 1 200px; }
+
+.purchase-modal-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.form-row-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.form-group {
+  flex: 1 1 200px;
+}
+
 .form-label { font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block; }
 .supplier-label-container { display: flex; justify-content: space-between; align-items: center; }
 .inline-add-btn { background: transparent; border: none; color: #2563eb; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 0; }
 .inline-supplier-input-block { display: flex; gap: 8px; align-items: flex-end; }
 .section-subtitle { font-size: 0.75rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; margin-bottom: 12px; }
-.items-blank-list { display: flex; flex-direction: column; gap: 12px; padding-bottom: 68px; }
-.form-item-row { display: flex; flex-wrap: nowrap; gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; align-items: center; }
+
+.items-blank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 68px;
+}
+
+.form-item-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px; /* Збільшили відступ між колонками */
+  background: #f8fafc;
+  padding: 12px 16px; /* Збільшили внутрішні відступи */
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  align-items: center;
+}
+
 .fg-name { flex: 1 1 140px; min-width: 0; }
 .fg-qty { width: 75px; flex: 0 0 75px; min-width: 0; }
-.fg-price { width: 100px; flex: 0 0 100px; min-width: 0; }
+.fg-price { width: 100px; flex: 0 0 100px; min-width: 0; } /* Розширили поле ціни */
 .fg-action { width: 32px; flex: 0 0 32px; display: flex; justify-content: flex-end; }
-.fg-qty :deep(input), .fg-price :deep(input) { min-width: 0 !important; width: 100% !important; padding: 8px !important; }
+
+.fg-qty :deep(input), .fg-price :deep(input) {
+  min-width: 0 !important;
+  width: 100% !important;
+  padding: 8px !important; /* Робимо текст трохи вільнішим всередині інпута */
+}
+
 .remove-item-btn { background: #fef2f2; border: 1px solid #fca5a5; color: #ef4444; width: 32px; height: 32px; border-radius: 6px; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s; padding: 0; margin: 0; }
 .remove-item-btn:hover:not(:disabled) { background: #fee2e2; }
 .remove-item-btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: #f87171; }
+
 .add-row-btn { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px dashed #cbd5e1; color: #2563eb; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 8px; width: 100%; }
 .add-row-btn:hover { background-color: #eff6ff; border-color: #2563eb; }
+
 .modal-footer { padding-top: 24px; border-top: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; margin-top: 12px; gap: 16px; }
 .form-grand-total { display: flex; flex-direction: column; }
 .total-label { font-size: 0.7rem; color: #64748b; font-weight: 700; letter-spacing: 0.05em; }
