@@ -3,8 +3,9 @@
     <main class="login-card">
       <div class="login-header">
         <div class="logo-box">
-          <IconBox class="logo-icon" /> </div>
-        <h1>ERP System</h1>
+          <img src="/favicon.png" alt="SA2 Logo" class="logo-image" />
+        </div>
+        <h1>SA2</h1>
         <p>Увійдіть у свій обліковий запис</p>
       </div>
 
@@ -47,7 +48,7 @@ import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import IconBox from '@/components/icons/IconBox.vue'
+// Видалили імпорт IconBox, бо він більше не потрібен
 
 const authStore = useAuthStore()
 const username = ref('')
@@ -83,11 +84,11 @@ const handleSubmit = () => {
   margin-bottom: 32px;
 }
 
-.logo-icon {
+/* Новий клас для картинки замість .logo-icon */
+.logo-image {
   width: 84px;
   height: 84px;
-  color: #0f172a;
-  stroke-width: 1.5px;
+  object-fit: contain; /* Щоб картинка не обрізалась і не розтягувалась пропорційно */
 }
 
 .logo-box {
