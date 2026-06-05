@@ -8,7 +8,7 @@ export const useAuthStore = defineStore('auth', () => {
   const router = useRouter()
 
   const token = ref(localStorage.getItem('token') || null)
-  const refreshToken = ref(localStorage.getItem('refreshToken') || null)
+  const refreshToken = ref(localStorage.getItem('refreshToken') || null) 
   const user = ref(JSON.parse(localStorage.getItem('user')) || null)
   const isLoading = ref(false)
   const errorMessage = ref('')

@@ -2,43 +2,16 @@
   <div class="tab-pane">
     <div class="filters-container">
       <div class="filter-group-pills">
-        <BaseButton
-          variant="secondary"
-          :class="{ 'active-pill': selectedType === 'all' }"
-          @click="selectedType = 'all'"
-        >
-          Всі
-        </BaseButton>
-        <BaseButton
-          variant="secondary"
-          :class="{ 'active-pill': selectedType === 'income' }"
-          @click="selectedType = 'income'"
-        >
-          Доходи
-        </BaseButton>
-        <BaseButton
-          variant="secondary"
-          :class="{ 'active-pill': selectedType === 'expense' }"
-          @click="selectedType = 'expense'"
-        >
-          Витрати
-        </BaseButton>
+        <BaseButton variant="secondary" :class="{ 'active-pill': selectedType === 'all' }" @click="selectedType = 'all'">Всі</BaseButton>
+        <BaseButton variant="secondary" :class="{ 'active-pill': selectedType === 'income' }" @click="selectedType = 'income'">Доходи</BaseButton>
+        <BaseButton variant="secondary" :class="{ 'active-pill': selectedType === 'expense' }" @click="selectedType = 'expense'">Витрати</BaseButton>
       </div>
 
       <div class="right-actions">
         <div class="cashbox-filter-wrapper">
-          <BaseSelect
-            v-model="selectedCashboxId"
-            :options="cashboxOptions"
-            placeholder="Оберіть касу"
-          />
+          <BaseSelect v-model="selectedCashboxId" :options="cashboxOptions" placeholder="Оберіть касу" />
         </div>
-
-        <BaseButton
-          variant="primary"
-          @click="financeStore.exportCsv"
-          :disabled="financeStore.isLoading"
-        >
+        <BaseButton variant="primary" @click="financeStore.exportCsv" :disabled="financeStore.isLoading">
           <span v-if="financeStore.isLoading">Завантаження...</span>
           <span v-else>Експорт CSV</span>
         </BaseButton>
@@ -68,29 +41,19 @@
             @click="selectedTx = tx; isDetailsOpen = true"
           >
             <td class="text-muted font-medium">{{ formatDate(tx.timestamp || new Date()) }}</td>
-
             <td class="font-bold text-dark">{{ getCashboxName(tx.cash_register) }}</td>
-
             <td>
               <BaseStatusBadge :class="getTransactionClass(tx)">
                 {{ getTransactionLabel(tx) }}
               </BaseStatusBadge>
             </td>
-
             <td class="text-right font-bold text-amount" :class="['expense', 'refund'].includes(tx.transaction_type) ? 'amt-negative' : 'amt-positive'">
               {{ ['expense', 'refund'].includes(tx.transaction_type) ? '-' : '+' }}{{ formatCurrency(tx.amount, tx.currency || 'UAH') }}
             </td>
-
             <td class="font-medium" :class="tx.order ? 'text-order-id' : 'text-muted'">
-              <template v-if="tx.order">
-                Замовлення #{{ tx.order }}
-              </template>
-              <template v-else-if="tx.comment">
-                {{ tx.comment }}
-              </template>
-              <template v-else>
-                —
-              </template>
+              <template v-if="tx.order">Замовлення #{{ tx.order }}</template>
+              <template v-else-if="tx.comment">{{ tx.comment }}</template>
+              <template v-else>—</template>
             </td>
           </tr>
           <tr v-if="filteredTransactions.length === 0">
@@ -164,15 +127,12 @@ const getTransactionClass = (tx) => {
 const filteredTransactions = computed(() => {
   return financeStore.transactions.filter(t => {
     let matchesType = true;
-
     if (selectedType.value === 'income') {
       matchesType = !['expense', 'refund'].includes(t.transaction_type);
     } else if (selectedType.value === 'expense') {
       matchesType = ['expense', 'refund'].includes(t.transaction_type);
     }
-
     const matchesCashbox = selectedCashboxId.value === 'all' || String(t.cash_register) === String(selectedCashboxId.value)
-
     return matchesType && matchesCashbox
   })
 })
@@ -184,36 +144,18 @@ const filteredTransactions = computed(() => {
 .active-pill { background-color: #2563eb !important; color: #ffffff !important; }
 .right-actions { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
 .cashbox-filter-wrapper { width: 220px; }
-
-.table-container {
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  background: white;
-  width: 100%;
-  display: block;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
+.table-container { border: 1px solid #e2e8f0; border-radius: 12px; background: white; width: 100%; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .shadow-premium { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 20px 25px -5px rgba(0, 0, 0, 0.03); }
-
 .finance-table { width: 100%; border-collapse: collapse; min-width: 800px; }
-
 .finance-table th { background-color: #f8fafc; padding: 16px; color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; text-align: left; border-bottom: 1px solid #e2e8f0; letter-spacing: 0.05em; }
 .finance-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; vertical-align: middle; color: #334155; }
 .table-row-hover:hover { background-color: #f8fafc; transition: background-color 0.15s; }
 .finance-table tr:last-child td { border-bottom: none; }
-
 .cursor-pointer { cursor: pointer; transition: all 0.2s ease;}
-
-.cursor-pointer:hover td,
-.cursor-pointer:active td {
-  color: #2563eb !important;
-}
-
+.cursor-pointer:hover td, .cursor-pointer:active td { color: #2563eb !important; }
 :deep(.type-income) { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 :deep(.type-expense) { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 :deep(.type-neutral) { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-
 .text-amount { font-size: 1rem; letter-spacing: -0.01em; }
 .amt-positive { color: #166534; }
 .amt-negative { color: #b91c1c; }
@@ -225,7 +167,6 @@ const filteredTransactions = computed(() => {
 .font-bold { font-weight: 600; }
 .text-right { text-align: right; }
 .text-center { text-align: center; }
-
 @media (max-width: 1024px) {
   .filters-container { flex-direction: column; align-items: stretch; }
   .right-actions { justify-content: space-between; flex-wrap: wrap; }

@@ -207,20 +207,12 @@ const currentViewComponent = computed(() => {
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   margin-bottom: 32px;
-  flex-wrap: nowrap;
-
+  flex-wrap: wrap;
   width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .filter-item :deep(div) { margin-bottom: 0 !important; }
-.filter-item { margin-bottom: 0 !important; }
-
-.filter-search { flex: 0 0 220px; }
-.filter-select { flex: 0 0 160px; }
-.filter-cell { flex: 0 0 120px; }
+.filter-item { margin-bottom: 0 !important; flex: 1; min-width: 180px; }
 
 .reset-btn {
   flex-shrink: 0;
@@ -267,5 +259,7 @@ const currentViewComponent = computed(() => {
 
 @media (max-width: 768px) {
   .repairs-view { padding: 16px; }
+  .filters-section { flex-direction: column; align-items: stretch; }
+  .reset-btn { width: 100%; justify-content: center; }
 }
 </style>
