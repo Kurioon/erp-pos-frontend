@@ -44,6 +44,7 @@
       </div>
 
       <WarehouseFilters
+        class="inventory-filters"
         v-model:searchQuery="searchQuery"
         v-model:selectedWarehouse="selectedWarehouse"
         :warehouses="warehousesStore.warehouses"
@@ -229,6 +230,19 @@ const handleMoveStock = async (moveData) => {
 .icon-btn.edit:hover { background: #f1f5f9; color: #2563eb; }
 .icon-btn.delete:hover { background: #fef2f2; color: #ef4444; }
 .card-footer { font-size: 0.8rem; color: #64748b; }
+
+.inventory-filters {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .inventory-filters {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
 .loading-state { text-align: center; padding: 40px; }
 
 .confirm-content { padding: 10px 0; font-size: 0.95rem; color: #334155; }
