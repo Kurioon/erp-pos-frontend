@@ -57,16 +57,43 @@ export const useWarehousesStore = defineStore('warehouses', () => {
     )
   }
 
+  // Універсальна функція для витягування всіх сторінок пагінації
+  const fetchAllPages = async (endpoint) => {
+    let allItems = []
+    let page = 1
+    while (true) {
+      try {
+        const response = await api.get(endpoint, { params: { page } })
+        const data = response.data
+        if (data.results) {
+          allItems = allItems.concat(data.results)
+        } else if (Array.isArray(data)) {
+          allItems = allItems.concat(data)
+          break // Якщо прийшов просто масив без пагінації
+        } else {
+          break
+        }
+        if (!data.next) break // Якщо немає наступної сторінки - виходимо з циклу
+        page++
+      } catch (error) {
+        console.error(`Помилка завантаження ${endpoint} на сторінці ${page}:`, error)
+        break
+      }
+    }
+    return allItems
+  }
+
   const fetchInventory = async () => {
     isLoading.value = true
     try {
-      const [productsRes, stocksRes] = await Promise.all([
-        api.get('/products/'),
-        api.get('/warehouse-stocks/'),
+      // Тягнемо ВСІ товари і ВСІ залишки з усіх сторінок одночасно
+      const [allProducts, allStocks] = await Promise.all([
+        fetchAllPages('/products/'),
+        fetchAllPages('/warehouse-stocks/'),
       ])
 
-      products.value = productsRes.data.results || productsRes.data || []
-      stocks.value = stocksRes.data.results || stocksRes.data || []
+      products.value = allProducts
+      stocks.value = allStocks
     } catch (error) {
       console.error('Помилка завантаження інвентарю:', error)
       window.dispatchEvent(
@@ -104,62 +131,61 @@ export const useWarehousesStore = defineStore('warehouses', () => {
       isLoading.value = false
     }
   }
-const fetchProductMovement = async (productId) => {
-  try {
-    const response = await api.get(`/stock-movements/?nomenclature=${productId}`)
-    return response.data.results || response.data || []
-  } catch (error) {
-    console.error('Помилка завантаження історії руху:', error)
-    return []
-  }
-}
 
-const moveStock = async (payload) => {
-  isLoading.value = true
-  try {
-    // 1. Знаходимо ID залишку (WarehouseStock.id) для комбінації товар + склад
-    const sourceStockRecord = stocks.value.find(
-      (s) => s.nomenclature === payload.product_id && s.warehouse === payload.from_warehouse
-    )
-
-    if (!sourceStockRecord) {
-      throw new Error('Залишок не знайдено для вказаної комбінації товару та складу')
+  const fetchProductMovement = async (productId) => {
+    try {
+      const response = await api.get(`/stock-movements/?nomenclature=${productId}`)
+      return response.data.results || response.data || []
+    } catch (error) {
+      console.error('Помилка завантаження історії руху:', error)
+      return []
     }
-
-    // 2. Відправляємо POST запит з ID залишку в URL
-    const response = await api.post(`/warehouse-stocks/${sourceStockRecord.id}/move/`, {
-      quantity: Number(payload.quantity),
-      destination_warehouse_id: payload.to_warehouse,
-    })
-
-    // 3. Перезавантажуємо дані
-    await fetchInventory()
-
-    window.dispatchEvent(
-      new CustomEvent('app-success', {
-        detail: { message: 'Товар успішно переміщено!', type: 'success' },
-      }),
-    )
-
-    return response.data
-  } catch (error) {
-    console.error('Помилка переміщення товару:', error)
-    
-    let errorMessage = 'Не вдалося перемістити товар. Перевірте залишки.'
-    if (error.response?.data?.detail) {
-      errorMessage = error.response.data.detail
-    }
-    
-    window.dispatchEvent(
-      new CustomEvent('api-error', {
-        detail: { message: errorMessage, type: 'error' },
-      }),
-    )
-    throw error
-  } finally {
-    isLoading.value = false
   }
-}
+
+  const moveStock = async (payload) => {
+    isLoading.value = true
+    try {
+      const sourceStockRecord = stocks.value.find(
+        (s) => s.nomenclature === payload.product_id && s.warehouse === payload.from_warehouse,
+      )
+
+      if (!sourceStockRecord) {
+        throw new Error('Залишок не знайдено для вказаної комбінації товару та складу')
+      }
+
+      const response = await api.post(`/warehouse-stocks/${sourceStockRecord.id}/move/`, {
+        quantity: Number(payload.quantity),
+        destination_warehouse_id: payload.to_warehouse,
+      })
+
+      await fetchInventory()
+
+      window.dispatchEvent(
+        new CustomEvent('app-success', {
+          detail: { message: 'Товар успішно переміщено!', type: 'success' },
+        }),
+      )
+
+      return response.data
+    } catch (error) {
+      console.error('Помилка переміщення товару:', error)
+
+      let errorMessage = 'Не вдалося перемістити товар. Перевірте залишки.'
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('api-error', {
+          detail: { message: errorMessage, type: 'error' },
+        }),
+      )
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const inventoryList = computed(() => {
     return products.value.map((product) => {
       const productStocks = stocks.value.filter((s) => s.nomenclature === product.id)
@@ -184,7 +210,6 @@ const moveStock = async (payload) => {
         warehouse_names: warehouseNames,
       }
     })
-
   })
 
   return {
