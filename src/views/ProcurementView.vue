@@ -73,6 +73,7 @@ import PurchasesTable from '@/components/purchases/PurchasesTable.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
 import ReceiveOrderModal from '@/components/orders/ReceiveOrderModal.vue'
 import { useWarehousesStore } from '@/stores/warehouses'
+import api from '@/api/axios'
 
 const procurementStore = useProcurementStore()
 const suppliersList = ref(['Apple Distribution Ukraine', 'Samsung Electronics Ukraine', 'Lenovo Ukraine', 'Xiaomi Official'])
