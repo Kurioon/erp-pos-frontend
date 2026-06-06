@@ -106,6 +106,32 @@ export const useWarehousesStore = defineStore('warehouses', () => {
     }
   }
 
+  const createProduct = async (productData) => {
+    isLoading.value = true
+    try {
+      const response = await api.post('/products/', productData)
+      products.value.push(response.data)
+      window.dispatchEvent(
+        new CustomEvent('app-success', {
+          detail: { message: `Товар "${response.data.name}" успішно створено!`, type: 'success' },
+        })
+      )
+      await fetchInventory() // Перезавантажуємо список для актуальності
+      return response.data
+    } catch (error) {
+      console.error('Помилка створення товару:', error)
+      const detail = error.response?.data?.detail || 'Не вдалося створити товар'
+      window.dispatchEvent(
+        new CustomEvent('api-error', {
+          detail: { message: detail, type: 'error' },
+        })
+      )
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const updateProductPrices = async (id, payload) => {
     isLoading.value = true
     try {
@@ -223,6 +249,7 @@ export const useWarehousesStore = defineStore('warehouses', () => {
     updateWarehouse,
     deleteWarehouse,
     fetchInventory,
+    createProduct,
     updateProductPrices,
     fetchProductMovement,
     moveStock,

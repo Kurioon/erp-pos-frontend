@@ -27,7 +27,7 @@
               aria-label="Збільшити кількість"
             >+</button>
           </div>
-          <span class="item-total">{{ formatCurrency(item.price * item.qty, cartStore.currency) }}</span>
+          <span class="item-total">{{ formatCurrency(getItemPrice(item) * item.qty, cartStore.currency) }}</span>
         </div>
       </transition-group>
     </div>
@@ -36,6 +36,15 @@
       <div class="summary-row total-row">
         <span class="summary-label">Разом</span>
         <strong>{{ formatCurrency(cartStore.totalAmount, cartStore.currency) }}</strong>
+      </div>
+
+      <div class="input-group">
+        <label class="group-label">Валюта оплати</label>
+        <div class="toggle-wrapper">
+          <button :class="['toggle-btn', { active: cartStore.currency === 'UAH' }]" @click="cartStore.currency = 'UAH'">₴ UAH</button>
+          <button :class="['toggle-btn', { active: cartStore.currency === 'USD' }]" @click="cartStore.currency = 'USD'">$ USD</button>
+          <button :class="['toggle-btn', { active: cartStore.currency === 'EUR' }]" @click="cartStore.currency = 'EUR'">€ EUR</button>
+        </div>
       </div>
 
       <div class="input-group">
@@ -61,7 +70,7 @@
       <transition name="expand">
         <div v-if="paymentType === 'partial'" class="partial-payment-section">
          <BaseInput
-            label="Сума передоплати (₴):"
+            :label="`Сума передоплати (${cartStore.currency}):`"
             type="text"
             inputmode="numeric"
             :model-value="cartStore.prepayAmount === 0 ? '' : String(cartStore.prepayAmount)"
@@ -108,6 +117,14 @@
       :currency="cartStore.currency"
       @close="showReceiptModal = false"
     />
+  <ConfirmModal
+    :is-open="isConfirmOpen"
+    title="Підтвердження продажу"
+    :message="confirmMessage"
+    confirmText="Оформити оплату"
+    @close="isConfirmOpen = false"
+    @confirm="executeCheckout"
+  />
 </template>
 
 <script setup>
@@ -118,6 +135,7 @@ import { formatCurrency } from '@/utils/formatters'
 import api from '@/api/axios'
 
 import ReceiptModal from '@/components/pos/ReceiptModal.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import IconReceipt from '@/components/icons/IconReceipt.vue'
@@ -129,11 +147,21 @@ const isSubmitting = ref(false)
 const showReceiptModal = ref(false)
 const lastCompletedOrder = ref(null)
 
+const isConfirmOpen = ref(false)
+const confirmMessage = ref('')
+
 const setPaymentType = (type) => {
   paymentType.value = type
   if (type === 'full') {
     cartStore.prepayAmount = 0
   }
+}
+
+const getItemPrice = (item) => {
+  if (cartStore.currency === 'UAH') return Number(item.price_uah || item.price)
+  if (cartStore.currency === 'USD') return Number(item.price_usd || 0)
+  if (cartStore.currency === 'EUR') return Number(item.price_eur || 0)
+  return Number(item.price)
 }
 
 const preventNonDigits = (event) => {
@@ -155,7 +183,7 @@ const isPrepayInvalid = computed(() => {
   return paymentType.value === 'partial' && cartStore.prepayAmount > cartStore.totalAmount
 })
 
-const handleCheckout = async () => {
+const handleCheckout = () => {
   if (cartStore.items.length === 0 || isPrepayInvalid.value || isSubmitting.value) return
 
   if (!cartStore.activeCashbox) {
@@ -165,6 +193,20 @@ const handleCheckout = async () => {
     return
   }
 
+  const paymentAmount = paymentType.value === 'full' ? cartStore.totalAmount : cartStore.prepayAmount
+  const paymentTypeStr = paymentType.value === 'full' ? 'Повна оплата' : 'Часткова оплата (передоплата)'
+  
+  confirmMessage.value = `Ви збираєтесь оформити продаж на суму <strong>${formatCurrency(cartStore.totalAmount, cartStore.currency)}</strong>.<br>
+  Тип оплати: <strong>${paymentTypeStr}</strong><br>
+  До сплати зараз: <strong>${formatCurrency(paymentAmount, cartStore.currency)}</strong><br><br>
+  Підтвердити операцію?`
+  
+  isConfirmOpen.value = true
+}
+
+const executeCheckout = async () => {
+  if (cartStore.items.length === 0 || isPrepayInvalid.value || isSubmitting.value) return
+  isConfirmOpen.value = false
   isSubmitting.value = true
   try {
     const paymentAmount = paymentType.value === 'full' ? cartStore.totalAmount : cartStore.prepayAmount
@@ -173,7 +215,7 @@ const handleCheckout = async () => {
       ...cartStore.getOrderPayload(),
       prepay_amount: 0,
       balance_due: cartStore.totalAmount,
-      status: 'new',
+      status: 'draft',
       cash_register: cartStore.activeCashbox.id
     }
 
@@ -249,7 +291,7 @@ const handleEnterPress = () => {
 
 .cart-items {
   flex: 1 1 0;
-  min-height: 60px;
+  min-height: 220px;
   overflow-y: auto;
   padding: 0 24px;
   display: flex;
@@ -259,14 +301,17 @@ const handleEnterPress = () => {
 }
 
 .checkout-panel {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  overflow-y: auto;
   background: #ffffff;
-  padding: 20px 24px;
+  padding: 16px 20px;
   border-top: 1px solid #e2e8f0;
   position: relative;
   z-index: 10;
   box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.02);
 }
+.checkout-panel::-webkit-scrollbar { width: 4px; }
+.checkout-panel::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
 .cart-items::-webkit-scrollbar { width: 6px; }
 .cart-items::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 6px; }
 
@@ -307,14 +352,14 @@ const handleEnterPress = () => {
 .list-leave-to { opacity: 0; transform: translateX(-20px) scale(0.98); position: absolute; width: calc(100% - 48px); }
 .list-move { transition: transform 0.3s ease; }
 
-.summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .summary-label { color: #64748b; font-size: 0.95rem; font-weight: 500; }
 .total-row strong { font-size: 1.45rem; color: #0f172a; letter-spacing: -0.02em; }
 
 .debt-row { color: #ef4444; font-size: 1.1rem; padding-top: 16px; border-top: 1px dashed #e2e8f0; margin-top: 16px; margin-bottom: 8px; }
 .debt-row .summary-label { color: #ef4444; }
 
-.input-group { margin-bottom: 20px; }
+.input-group { margin-bottom: 16px; }
 .group-label { display: block; font-size: 0.85rem; color: #475569; margin-bottom: 10px; font-weight: 600; }
 
 .checkout-panel input { width: 100%; padding: 12px 16px; font-size: 0.95rem; font-weight: 500; color: #334155; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; transition: all 0.2s ease; outline: none; box-sizing: border-box; }
@@ -333,7 +378,7 @@ const handleEnterPress = () => {
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; margin-top: 0; transform: translateY(-5px); }
 .expand-enter-to, .expand-leave-from { opacity: 1; max-height: 300px; margin-top: 20px; transform: translateY(0); }
 
-.mb-compact { margin-bottom: 20px; }
+.mb-compact { margin-bottom: 12px; }
 .mt-1 { margin-top: 8px; }
 
 .pay-btn { width: 100%; padding: 16px; border-radius: 8px; font-size: 1.1rem; font-weight: 600; letter-spacing: 0.02em; margin-top: 12px; }

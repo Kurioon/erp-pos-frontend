@@ -4,17 +4,24 @@
       :is-open="isReturnModalOpen"
       @close="isReturnModalOpen = false"
     />
+    <ProductDetailsDrawer
+      :product="selectedProduct"
+      :warehouses="warehousesStore.warehouses"
+      :readonly="true"
+      @close="selectedProduct = null"
+    />
     <div class="catalog-header">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Пошук або сканер штрих-коду..."
-        class="search-input"
-        aria-label="Пошук товарів"
-      >
-      <button class="return-btn" @click="handleReturn">
+      <FilterBar
+        searchPlaceholder="Пошук (назва, артикул, штрихкод)..."
+        :filters="filterBarConfig"
+        :modelValue="filters.search"
+        @update:search="onSearchUpdate"
+        @update:filter="onFilterUpdate"
+        class="pos-filter"
+      />
+      <BaseButton class="return-btn" @click="handleReturn">
         ↺ Повернення
-      </button>
+      </BaseButton>
     </div>
 
     <div v-if="cartStore.isLoading" class="loading-state">
@@ -29,17 +36,22 @@
         :tabindex="product.stock > 0 ? 0 : -1"
         role="button"
         :aria-disabled="product.stock === 0"
-        @click="handleAdd(product)"
-        @keydown.enter.prevent="handleAdd(product)"
-        @keydown.space.prevent="handleAdd(product)"
+        @click="openDrawer(product)"
+        @keydown.enter.prevent="openDrawer(product)"
+        @keydown.space.prevent="openDrawer(product)"
       >
         <h3 class="product-title">{{ product.name }}</h3>
 
         <div class="product-footer">
-          <span class="price">{{ formatCurrency(product.sale_price) }}</span>
-          <span :class="['stock-badge', { 'stock-empty': product.stock === 0 }]">
-            {{ product.stock }} шт
-          </span>
+          <div class="footer-info">
+            <span class="price">{{ formatCurrency(product.sale_price) }}</span>
+            <span :class="['stock-badge', { 'stock-empty': product.stock === 0 }]">
+              {{ product.stock }} шт
+            </span>
+          </div>
+          <BaseButton class="add-btn" @click.stop="handleAdd(product)" :disabled="product.stock === 0">
+            + Додати
+          </BaseButton>
         </div>
       </div>
     </div>
@@ -48,21 +60,70 @@
 
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useCartStore } from '@/stores/pos'
+import { useCategoriesStore } from '@/stores/categories'
+import { useWarehousesStore } from '@/stores/warehouses'
 import { formatCurrency } from '@/utils/formatters'
 import ReturnModal from '@/components/pos/ReturnModal.vue'
+import FilterBar from '@/components/ui/FilterBar.vue'
+import ProductDetailsDrawer from '@/components/warehouses/ProductDetailsDrawer.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const cartStore = useCartStore()
-const searchQuery = ref('')
+const categoriesStore = useCategoriesStore()
+const warehousesStore = useWarehousesStore()
+
 const isReturnModalOpen = ref(false)
+const selectedProduct = ref(null)
+
+const openDrawer = (product) => {
+  selectedProduct.value = product
+}
+
+const filters = ref({
+  search: '',
+  category: ''
+})
+
+const categoryOptions = computed(() => {
+  return [
+    { value: '', label: 'Всі категорії' },
+    ...categoriesStore.categories.map(c => ({ value: c.id, label: c.name }))
+  ]
+})
+
+const filterBarConfig = computed(() => [
+  { key: 'category', label: 'Всі категорії', options: categoryOptions.value }
+])
+
+const onSearchUpdate = (val) => {
+  filters.value.search = val
+  fetchProducts()
+}
+
+const onFilterUpdate = ({ key, value }) => {
+  filters.value[key] = value
+  fetchProducts()
+}
+
+const fetchProducts = () => {
+  cartStore.fetchProducts(1, filters.value)
+}
+
+onMounted(() => {
+  if (categoriesStore.categories.length === 0) {
+    categoriesStore.fetchList()
+  }
+  if (warehousesStore.warehouses.length === 0) {
+    warehousesStore.fetchWarehouses()
+  }
+})
 
 const filteredProducts = computed(() => {
-  if (!searchQuery.value) return cartStore.products
-  return cartStore.products.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    (p.barcode && p.barcode.includes(searchQuery.value))
-  )
+  // Фільтрація тепер на бекенді, тому просто повертаємо товари зі стору
+  // Але якщо користувач ввів щось швидко, бекенд відпрацює
+  return cartStore.products
 })
 
 const handleAdd = (product) => {
@@ -91,19 +152,10 @@ const handleReturn = () => {
   flex-shrink: 0;
 }
 
-.search-input {
+.pos-filter {
   flex-grow: 1;
-  padding: 12px 16px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 1rem;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.search-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  margin-bottom: 0 !important;
+  padding: 8px 12px !important;
 }
 
 .return-btn {
@@ -144,7 +196,7 @@ const handleReturn = () => {
   cursor: pointer;
   transition: all 0.2s ease;
   background-color: #ffffff;
-  min-height: 110px;
+  min-height: 160px;
   outline: none;
   position: relative;
   z-index: 1;
@@ -175,6 +227,13 @@ const handleReturn = () => {
 
 .product-footer {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.footer-info {
+  display: flex;
   justify-content: space-between;
   align-items: center;
 }
@@ -198,6 +257,34 @@ const handleReturn = () => {
   background: #fef2f2;
   color: #ef4444;
 }
+
+.add-btn {
+  align-self: stretch;
+  box-sizing: border-box;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.add-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.add-btn:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1023px) {
   .products-section {
     height: 45vh; 
@@ -231,8 +318,8 @@ const handleReturn = () => {
   }
 
   .product-card {
-    padding: 10px;
-    min-height: 90px;
+    padding: 12px;
+    min-height: 140px;
   }
 
   .product-title {

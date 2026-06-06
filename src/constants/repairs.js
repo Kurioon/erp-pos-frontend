@@ -18,3 +18,8 @@ export const REPAIR_STATUS_CLASSES = {
   [REPAIR_STATUSES.REPAIRED]: 'status-completed',
   [REPAIR_STATUSES.DELIVERED]: 'status-delivered',
 }
+
+export const ORDERING_OPTIONS = [
+  { value: '-created_at', label: 'Спочатку нові' },
+  { value: 'created_at', label: 'Спочатку старі' }
+]

@@ -32,32 +32,35 @@
       <div v-if="viewMode === 'table'" class="filters-section">
         <BaseInput
           v-model="filters.search"
-          placeholder="Пошук (телефон, пристрій)..."
-          @keyup.enter="applyFilters"
-          class="filter-item filter-search"
+          label="Пошук"
+          placeholder="ID, телефон, пристрій..."
+          @update:modelValue="onSearchUpdate"
         />
         <BaseSelect
           v-model="filters.status"
+          label="Статус"
           :options="statusOptions"
           placeholder="Всі статуси"
-          @update:modelValue="applyFilters"
-          class="filter-item filter-select"
-        />
-        <BaseInput
-          v-model="filters.storage_cell"
-          placeholder="Комірка (напр. R1)"
-          @keyup.enter="applyFilters"
-          class="filter-item filter-cell"
+          @update:modelValue="onFilterUpdate"
         />
         <BaseSelect
           v-model="filters.ordering"
+          label="Сортування"
           :options="orderingOptions"
-          @update:modelValue="applyFilters"
-          class="filter-item filter-select"
+          placeholder="Сортування"
+          @update:modelValue="onFilterUpdate"
         />
-        <BaseButton variant="secondary" @click="resetFilters" class="reset-btn">
-          Скинути
-        </BaseButton>
+        <BaseInput
+          v-model="filters.storage_cell"
+          label="Комірка"
+          placeholder="напр. R1"
+          @keyup.enter="onFilterUpdate"
+        />
+        <div class="filter-actions">
+          <BaseButton variant="secondary" @click="resetFilters" class="reset-btn">
+            Скинути
+          </BaseButton>
+        </div>
       </div>
     </transition>
 
@@ -74,7 +77,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRepairsStore } from '@/stores/repairs'
-import { REPAIR_STATUSES, REPAIR_STATUS_LABELS } from '@/constants/repairs'
+import { REPAIR_STATUSES, REPAIR_STATUS_LABELS, ORDERING_OPTIONS } from '@/constants/repairs'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -104,10 +107,19 @@ const statusOptions = [
   }))
 ]
 
-const orderingOptions = [
-  { value: '-created_at', label: 'Спочатку нові' },
-  { value: 'created_at', label: 'Спочатку старі' }
-]
+const orderingOptions = ORDERING_OPTIONS
+
+let searchTimeout = null
+const onSearchUpdate = () => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    applyFilters()
+  }, 400)
+}
+
+const onFilterUpdate = () => {
+  applyFilters()
+}
 
 const applyFilters = () => {
   repairsStore.fetchJobs(1, filters.value)
@@ -199,26 +211,25 @@ const currentViewComponent = computed(() => {
 }
 
 .filters-section {
-  display: flex;
-  gap: 12px;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 16px;
+  align-items: end;
   background: #f8fafc;
-  padding: 16px;
+  padding: 16px 20px;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  margin-bottom: 32px;
-  flex-wrap: wrap;
-  width: 100%;
+  margin-bottom: 24px;
 }
 
-.filter-item :deep(div) { margin-bottom: 0 !important; }
-.filter-item { margin-bottom: 0 !important; flex: 1; min-width: 180px; }
-
-.reset-btn {
-  flex-shrink: 0;
-  height: 42px;
+.filter-actions {
   display: flex;
   align-items: center;
+}
+
+.reset-btn {
+  height: 42px;
+  padding: 0 20px;
   white-space: nowrap;
 }
 
@@ -259,7 +270,12 @@ const currentViewComponent = computed(() => {
 
 @media (max-width: 768px) {
   .repairs-view { padding: 16px; }
-  .filters-section { flex-direction: column; align-items: stretch; }
+  .filters-section { grid-template-columns: 1fr; align-items: stretch; }
   .reset-btn { width: 100%; justify-content: center; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .filters-section { grid-template-columns: 1fr 1fr; }
+  .filter-search { grid-column: span 2; }
 }
 </style>

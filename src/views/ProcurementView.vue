@@ -8,21 +8,16 @@
       <BaseButton @click="openCreateModal">+ Створити чернетку</BaseButton>
     </header>
 
-    <div class="filters-section">
-      <BaseSelect
-        v-model="filters.status"
-        :options="statusOptions"
-        placeholder="Всі статуси"
-        @update:modelValue="applyFilters"
-        class="filter-select"
+    <div class="filters-section" style="padding: 0; background: transparent; border: none; margin-bottom: 32px; display: flex; gap: 12px; align-items: center;">
+      <FilterBar
+        searchPlaceholder="Пошук (ID замовлення)..."
+        :filters="filterBarConfig"
+        :modelValue="filters.search"
+        @update:search="onSearchUpdate"
+        @update:filter="onFilterUpdate"
+        style="margin-bottom: 0;"
       />
-      <BaseSelect
-        v-model="filters.ordering"
-        :options="orderingOptions"
-        @update:modelValue="applyFilters"
-        class="filter-select"
-      />
-      <BaseButton variant="secondary" @click="resetFilters" class="reset-btn">
+      <BaseButton variant="secondary" @click="resetFilters" class="reset-btn" style="height: 52px; align-self: flex-start;">
         Скинути
       </BaseButton>
     </div>
@@ -64,11 +59,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useProcurementStore } from '@/stores/procurement'
 import { PURCHASE_STATUS_LABELS } from '@/constants/purchases'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseSelect from '@/components/ui/BaseSelect.vue'
+import FilterBar from '@/components/ui/FilterBar.vue'
 import PurchasesTable from '@/components/purchases/PurchasesTable.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
 import ReceiveOrderModal from '@/components/orders/ReceiveOrderModal.vue'
@@ -88,6 +83,7 @@ const isReceiveModalOpen = ref(false)
 const orderToReceive = ref(null)
 
 const filters = ref({
+  search: '',
   status: '',
   ordering: '-created_at'
 })
@@ -102,12 +98,27 @@ const orderingOptions = [
   { value: 'created_at', label: 'Спочатку старі' }
 ]
 
+const filterBarConfig = computed(() => [
+  { key: 'status', label: 'Всі статуси', options: statusOptions },
+  { key: 'ordering', label: 'Сортування', options: orderingOptions }
+])
+
+const onSearchUpdate = (val) => {
+  filters.value.search = val
+  applyFilters()
+}
+
+const onFilterUpdate = ({ key, value }) => {
+  filters.value[key] = value
+  applyFilters()
+}
+
 const applyFilters = () => {
   procurementStore.fetchOrders(filters.value)
 }
 
 const resetFilters = () => {
-  filters.value = { status: '', ordering: '-created_at' }
+  filters.value = { search: '', status: '', ordering: '-created_at' }
   applyFilters()
 }
 
@@ -144,8 +155,7 @@ const handleSaveOrder = async (payload) => {
 }
 
 const openReceiveModal = (id) => {
-  // Компонент таблиці передає тільки ID, тому робимо об'єкт-заглушку для модалки
-  orderToReceive.value = { id } 
+  orderToReceive.value = { id }
   isReceiveModalOpen.value = true
 }
 
@@ -156,18 +166,17 @@ const closeReceiveModal = () => {
 
 const handleReceiveConfirm = async ({ orderId, warehouseId }) => {
   try {
-    // Робимо правильний запит на прийомку
     await api.post(`/orders/${orderId}/receive/`, { warehouse: warehouseId })
     closeReceiveModal()
 
-    // 1. Оновлюємо статус в поточній таблиці
-    applyFilters() 
-    
+    applyFilters()
 
-    // alert('Товари успішно прийняті на склад!') // Можеш розкоментувати за бажанням
+
   } catch (error) {
     console.error('Помилка прийомки:', error)
-    alert('Помилка прийомки. Перевірте консоль.')
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Помилка прийомки. Перевірте консоль.', type: 'error' }
+    }))
   }
 }
 </script>
