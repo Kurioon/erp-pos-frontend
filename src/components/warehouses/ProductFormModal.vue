@@ -6,7 +6,7 @@
         <BaseInput v-model="form.name" placeholder="Назва товару" />
       </div>
       <div class="form-group">
-        <label class="form-label">Артикул / Код</label>
+        <label class="form-label">Артикул / Код *</label>
         <BaseInput v-model="form.code" placeholder="Артикул" />
       </div>
       <div class="form-group">
@@ -35,6 +35,8 @@
            <span class="other-prices">/ {{ previewUsd }} $ / {{ previewEur }} €</span>
         </p>
       </div>
+
+      <div v-if="apiError" class="api-error-msg">{{ apiError }}</div>
 
       <div class="modal-actions">
         <BaseButton variant="secondary" @click="emit('close')">Скасувати</BaseButton>
@@ -84,8 +86,10 @@ const categoryOptions = computed(() => {
   return categoriesStore.categories.map(c => ({ value: c.id, label: c.name }))
 })
 
+const apiError = ref('')
+
 const isFormValid = computed(() => {
-  return form.value.name.trim().length > 0 && form.value.base_price > 0
+  return form.value.name.trim().length > 0 && form.value.code.trim().length > 0 && form.value.base_price > 0
 })
 
 const previewUah = computed(() => {
@@ -110,6 +114,7 @@ const previewEur = computed(() => {
 
 const submitForm = async () => {
   if (!isFormValid.value) return
+  apiError.value = ''
   const payload = {
     name: form.value.name,
     code: form.value.code,
@@ -117,9 +122,25 @@ const submitForm = async () => {
     base_price: String(form.value.base_price),
     base_currency: form.value.base_currency
   }
-  const createdProduct = await warehousesStore.createProduct(payload)
-  emit('save', createdProduct)
-  emit('close')
+  try {
+    const createdProduct = await warehousesStore.createProduct(payload)
+    emit('save', createdProduct)
+    emit('close')
+  } catch (error) {
+    // Задача 5: показати помилку дубль code → 400
+    const data = error.response?.data
+    if (data) {
+      if (data.code) {
+        apiError.value = Array.isArray(data.code) ? data.code[0] : data.code
+      } else if (data.detail) {
+        apiError.value = data.detail
+      } else {
+        apiError.value = JSON.stringify(data)
+      }
+    } else {
+      apiError.value = 'Не вдалося створити товар'
+    }
+  }
 }
 </script>
 
@@ -139,4 +160,6 @@ const submitForm = async () => {
 .other-prices { font-size: 0.9rem; color: #94a3b8; }
 
 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+
+.api-error-msg { background: #fef2f2; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; border: 1px solid #fca5a5; }
 </style>

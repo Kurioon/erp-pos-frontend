@@ -5,7 +5,7 @@
       <div class="form-row-top">
         <div class="form-group">
           <div class="supplier-label-container">
-            <label class="form-label">Постачальник *</label>
+            <label class="form-label">Постачальник</label>
             <button type="button" class="inline-add-btn" @click="isAddingNewSupplier = !isAddingNewSupplier">
               {{ isAddingNewSupplier ? '← До списку' : '+ Новий' }}
             </button>
@@ -261,15 +261,22 @@ const removeFormItem = (index) => { if (localOrder.value.items.length > 1) local
 const formTotalSum = computed(() => localOrder.value.items.reduce((sum, item) => sum + (item.qty * item.price || 0), 0))
 
 const isFormValid = computed(() => {
-  return localOrder.value.supplier !== '' && localOrder.value.items.every(i => i.product_id !== '' && i.qty > 0)
+  // Задача 5: постачальник необов'язковий
+  return localOrder.value.items.every(i => i.product_id !== '' && i.qty > 0)
 })
 
 const submitForm = () => {
   if (!isFormValid.value) return
   const payload = {
-    comment_ttn: `Постачальник: ${localOrder.value.supplier} | Дата: ${localOrder.value.date}`,
+    comment_ttn: localOrder.value.supplier
+      ? `Постачальник: ${localOrder.value.supplier} | Дата: ${localOrder.value.date}`
+      : `Дата: ${localOrder.value.date}`,
     total_amount: formTotalSum.value,
     items: localOrder.value.items.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price }))
+  }
+  // Задача 5: якщо є supplier — передаємо; якщо ні — не передаємо (nullable на бекенді)
+  if (localOrder.value.supplier) {
+    payload.supplier = localOrder.value.supplier
   }
   emit('save', payload)
 }
