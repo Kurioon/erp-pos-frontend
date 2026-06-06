@@ -52,8 +52,11 @@ const dashboardStore = useDashboardStore()
 const currentRegisterId = ref('all')
 
 onMounted(() => {
+  const todayObj = new Date()
+  const todayStr = todayObj.getFullYear() + '-' + String(todayObj.getMonth() + 1).padStart(2, '0') + '-' + String(todayObj.getDate()).padStart(2, '0')
+
   cartStore.fetchCashboxes()
-  financeStore.fetchTransactions()
+  financeStore.fetchTransactions(1, { date: todayStr })
   repairsStore.fetchJobs()
   dashboardStore.fetchLowStockAlerts()
 })
@@ -103,19 +106,22 @@ const formattedTransactions = computed(() => {
 })
 
 const dashboardMetrics = computed(() => {
-  const today = new Date().toISOString().split('T')[0]
+  const todayObj = new Date()
+  const todayStr = todayObj.getFullYear() + '-' + String(todayObj.getMonth() + 1).padStart(2, '0') + '-' + String(todayObj.getDate()).padStart(2, '0')
 
   let todaysIncome = 0
   let todaysSalesCount = 0
 
   financeStore.transactions.forEach(tx => {
-    const txDate = (tx.timestamp || tx.created_at || '').split('T')[0]
-    if (txDate === today) {
-      if (['expense', 'refund'].includes(tx.transaction_type)) {
+    const txDateObj = new Date(tx.timestamp || tx.created_at || new Date())
+    const txDateStr = txDateObj.getFullYear() + '-' + String(txDateObj.getMonth() + 1).padStart(2, '0') + '-' + String(txDateObj.getDate()).padStart(2, '0')
+
+    if (txDateStr === todayStr) {
+      if (['expense', 'refund', 'purchase'].includes(tx.transaction_type)) {
         todaysIncome -= Number(tx.amount_uah || tx.amount)
-      } else {
+      } else if (['prepay', 'payment', 'sale', 'income'].includes(tx.transaction_type)) {
         todaysIncome += Number(tx.amount_uah || tx.amount)
-        if (tx.order) todaysSalesCount++
+        if (tx.order && tx.transaction_type !== 'income') todaysSalesCount++
       }
     }
   })

@@ -8,8 +8,18 @@
       <div class="detail-row" v-if="tx.order"><span>Замовлення:</span> <b>#{{ tx.order }}</b></div>
       <div class="detail-row" v-if="tx.comment"><span>Примітка:</span> <b>{{ tx.comment }}</b></div>
 
-      <!-- Refund button -->
-      <div v-if="tx.order && orderData !== null" class="refund-section">
+      <!-- Action buttons -->
+      <div v-if="tx.order && orderData !== null" class="actions-section">
+        <button
+          v-if="orderData.can_view_receipt"
+          class="receipt-btn"
+          :disabled="isDownloadingReceipt"
+          @click="downloadReceipt"
+        >
+          <template v-if="isDownloadingReceipt">Завантаження...</template>
+          <template v-else>📄 Переглянути чек</template>
+        </button>
+
         <button
           class="refund-btn"
           :class="{ 'refund-btn--disabled': !orderData.can_refund }"
@@ -79,8 +89,28 @@ const showRefundConfirm = ref(false)
 const refundCashboxId = ref(null)
 const isRefunding = ref(false)
 const refundError = ref('')
+const isDownloadingReceipt = ref(false)
 
 const getTransactionLabel = (tx) => TRANSACTION_TYPE_LABELS[tx.transaction_type] || 'Транзакція'
+
+const downloadReceipt = async () => {
+  if (!props.tx?.order) return
+  isDownloadingReceipt.value = true
+  try {
+    const response = await api.get(`/orders/${props.tx.order}/receipt/`, {
+      responseType: 'blob'
+    })
+    const fileURL = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+    window.open(fileURL, '_blank')
+  } catch (e) {
+    console.error('Помилка завантаження чека:', e)
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Не вдалося згенерувати PDF чек.', type: 'error' }
+    }))
+  } finally {
+    isDownloadingReceipt.value = false
+  }
+}
 
 const cashboxOptions = ref([])
 
@@ -149,7 +179,22 @@ const executeRefund = async () => {
 .amt-positive { color: #166534; }
 .amt-negative { color: #b91c1c; }
 
-.refund-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+.actions-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 8px; }
+
+.receipt-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.receipt-btn:hover:not(:disabled) { background: #f1f5f9; border-color: #94a3b8; }
+.receipt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .refund-btn {
   width: 100%;
