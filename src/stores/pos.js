@@ -51,16 +51,23 @@ export const useCartStore = defineStore('pos', () => {
     isLoading.value = true
     try {
       const stocksData = await fetchAllStocks()
-      
-      const queryParams = { page }
-      Object.entries(params).forEach(([k, v]) => {
-        if (v !== '' && v !== null && v !== undefined) queryParams[k] = v
-      })
-      
-      const productsResponse = await api.get('/products/', { params: queryParams })
-      const fetchedProducts = productsResponse.data.results || []
 
-      products.value = fetchedProducts.map((product) => {
+      const filterParams = {}
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== '' && v !== null && v !== undefined) filterParams[k] = v
+      })
+
+      let allProducts = []
+      let currentPage = 1
+      while (true) {
+        const { data } = await api.get('/products/', { params: { ...filterParams, page: currentPage } })
+        const results = data.results || []
+        allProducts = allProducts.concat(results)
+        if (!data.next) break
+        currentPage++
+      }
+
+      products.value = allProducts.map((product) => {
         const totalStock = stocksData
           .filter((s) => Number(s.nomenclature) === Number(product.id))
           .reduce((sum, stock) => sum + (Number(stock.quantity) || 0), 0)
