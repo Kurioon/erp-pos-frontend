@@ -18,14 +18,14 @@
             placeholder="Оберіть..."
           />
           <div v-else class="inline-supplier-input-block">
-            <BaseInput v-model="newSupplierName" placeholder="Назва..." @keyup.enter="handleAddNewSupplier" />
+            <BaseInput v-model="newSupplierName" label="" placeholder="Назва..." @keyup.enter="handleAddNewSupplier" />
             <BaseButton variant="secondary" @click="handleAddNewSupplier">Додати</BaseButton>
           </div>
         </div>
 
         <div class="form-group">
           <label class="form-label">Дата замовлення</label>
-          <BaseInput type="date" v-model="localOrder.date" />
+          <BaseInput type="date" v-model="localOrder.date" label="" />
         </div>
       </div>
 
@@ -65,10 +65,10 @@
             
             <div class="row-bottom">
               <div class="fg-qty">
-                <BaseInput type="number" v-model.number="item.qty" min="1" placeholder="К-сть" />
+                <BaseInput type="number" v-model.number="item.qty" min="1" placeholder="К-сть" label="" />
               </div>
               <div class="fg-price">
-                <BaseInput type="number" v-model.number="item.price" min="0" placeholder="Ціна" />
+                <BaseInput type="number" v-model.number="item.price" min="0" placeholder="Ціна" label="" />
               </div>
               <div class="fg-action">
                 <button class="remove-item-btn" @click="removeFormItem(index)" :disabled="localOrder.items.length === 1">
@@ -326,10 +326,10 @@ const submitForm = () => {
 }
 
 .fg-name { width: 100%; }
-.row-bottom { display: flex; gap: 12px; align-items: center; justify-content: flex-end; }
-.fg-qty { width: 100px; flex: 0 0 100px; }
-.fg-price { width: 140px; flex: 0 0 140px; }
-.fg-action { width: 32px; flex: 0 0 32px; display: flex; justify-content: flex-end; }
+.row-bottom { display: flex; gap: 8px; align-items: center; justify-content: flex-end; width: 100%; }
+.fg-qty { flex: 1 1 80px; max-width: 100px; min-width: 0; }
+.fg-price { flex: 2 1 120px; max-width: 140px; min-width: 0; }
+.fg-action { flex: 0 0 32px; display: flex; justify-content: flex-end; }
 
 .fg-qty :deep(input), .fg-price :deep(input) {
   min-width: 0 !important;
