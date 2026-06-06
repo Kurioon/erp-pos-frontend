@@ -12,13 +12,13 @@
           <button type="button" class="change-btn" @click="clearDevice">Змінити</button>
         </div>
 
-        <div v-else class="device-search-area">
-          <div class="search-controls">
-            <BaseInput v-model="searchQuery" placeholder="Пошук по назві..." @input="onSearchInput" />
-            <BaseSelect v-model="searchCategory" :options="categoryOptions" placeholder="Всі категорії" @change="searchProducts" />
+        <div v-else class="device-search-area" ref="deviceSearchRef">
+          <div class="search-controls" @click="isDropdownOpen = true">
+            <BaseInput v-model="searchQuery" placeholder="Пошук по назві..." @update:modelValue="onSearchInput" />
+            <BaseSelect v-model="searchCategory" :options="categoryOptions" placeholder="Всі категорії" @update:modelValue="searchProducts" />
           </div>
 
-          <div class="search-results-box" v-if="isSearching || searchResults.length > 0 || searchQuery || searchCategory">
+          <div class="search-results-box" v-if="isDropdownOpen">
             <div class="search-status" v-if="isSearching">
               <span class="text-muted">Завантаження...</span>
             </div>
@@ -30,8 +30,11 @@
             </ul>
             <div class="no-results" v-else>
               <span class="text-muted">Нічого не знайдено.</span>
-              <BaseButton type="button" variant="secondary" class="create-product-btn" @click="isProductModalOpen = true">
-                + Створити товар
+            </div>
+            
+            <div class="dropdown-footer">
+              <BaseButton type="button" variant="secondary" class="create-product-btn w-100" @click.stop="isProductModalOpen = true; isDropdownOpen = false">
+                + Створити новий товар
               </BaseButton>
             </div>
           </div>
@@ -156,18 +159,17 @@ const searchCategory = ref('')
 const searchResults = ref([])
 const isSearching = ref(false)
 const isProductModalOpen = ref(false)
+const isDropdownOpen = ref(false)
+const deviceSearchRef = ref(null)
 
 let searchTimeout = null
 const onSearchInput = () => {
+  isDropdownOpen.value = true
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(searchProducts, 300)
 }
 
 const searchProducts = async () => {
-  if (!searchQuery.value && !searchCategory.value) {
-    searchResults.value = []
-    return
-  }
   isSearching.value = true
   try {
     const params = {}
@@ -269,13 +271,24 @@ const handleSubmit = () => {
 }
 
 const handleKeydown = (e) => { if (e.key === 'Escape') emit('close') }
+const handleOutsideClick = (e) => {
+  if (isDropdownOpen.value && deviceSearchRef.value && !deviceSearchRef.value.contains(e.target)) {
+    isDropdownOpen.value = false
+  }
+}
+
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown)
+  document.addEventListener('mousedown', handleOutsideClick)
   if (categoriesStore.categories.length === 0) {
     categoriesStore.fetchList()
   }
+  searchProducts()
 })
-onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('mousedown', handleOutsideClick)
+})
 </script>
 
 <style scoped>
@@ -296,7 +309,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 
 .device-search-area { position: relative; display: flex; flex-direction: column; gap: 8px; }
 .search-controls { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
-.search-results-box { border: 1px solid #e2e8f0; border-radius: 8px; background: white; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+.search-results-box { position: absolute; top: 100%; left: 0; right: 0; z-index: 50; margin-top: 4px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
 .search-status { padding: 12px; text-align: center; font-size: 0.85rem; color: #64748b; }
 .results-list { list-style: none; padding: 0; margin: 0; }
 .result-item { padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
@@ -307,6 +320,9 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 .text-sm { font-size: 0.8rem; }
 .no-results { padding: 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 0.9rem; }
 .create-product-btn { padding: 6px 12px; font-size: 0.85rem; }
+
+.dropdown-footer { padding: 8px 12px; border-top: 1px solid #f1f5f9; background: #fafafa; position: sticky; bottom: 0; }
+.create-product-btn { width: 100%; justify-content: center; font-weight: 500; }
 
 @media (max-width: 640px) { .repair-form { min-width: 100%; } .form-row { grid-template-columns: 1fr; gap: 12px; } .search-controls { grid-template-columns: 1fr; } }
 </style>
