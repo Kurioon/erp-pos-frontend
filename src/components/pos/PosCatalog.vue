@@ -280,7 +280,8 @@ const handleReturn = () => {
 }
 
 .add-btn:disabled {
-  background: #94a3b8;
+  background: #e2e8f0;
+  color: #94a3b8;
   cursor: not-allowed;
 }
 

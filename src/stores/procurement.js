@@ -114,6 +114,7 @@ export const useProcurementStore = defineStore('procurement', () => {
         status: PURCHASE_STATUSES.DRAFT,
         total_amount: payload.total_amount,
         comment_ttn: payload.comment_ttn,
+        supplier_name_input: payload.supplier,
       })
 
       const newOrderId = orderResponse.data.id
@@ -176,6 +177,7 @@ export const useProcurementStore = defineStore('procurement', () => {
       await api.patch(`/orders/${id}/`, {
         total_amount: payload.total_amount,
         comment_ttn: payload.comment_ttn,
+        supplier_name_input: payload.supplier,
       })
 
       await fetchOrders()
