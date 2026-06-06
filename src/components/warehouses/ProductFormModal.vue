@@ -11,7 +11,23 @@
       </div>
       <div class="form-group">
         <label class="form-label">Категорія</label>
-        <BaseSelect v-model="form.category" :options="categoryOptions" placeholder="Оберіть категорію..." />
+        <BaseSelect v-if="!isCreatingNewCategory" v-model="form.category" :options="categoryOptions" placeholder="Оберіть категорію...">
+          <template #append>
+            <div class="dropdown-footer-btn-wrapper">
+              <BaseButton type="button" variant="primary" class="w-100 dropdown-new-btn" @click.stop="isCreatingNewCategory = true">
+                + Створити нову категорію
+              </BaseButton>
+            </div>
+          </template>
+        </BaseSelect>
+        
+        <div v-else class="new-category-inline">
+          <BaseInput v-model="newCategoryName" placeholder="Назва нової категорії..." autofocus />
+          <BaseButton variant="primary" type="button" @click="saveNewCategory" :disabled="!newCategoryName.trim() || isSavingCategory">
+             {{ isSavingCategory ? '...' : 'Додати' }}
+          </BaseButton>
+          <BaseButton variant="secondary" type="button" class="cancel-cat-btn" @click="cancelNewCategory">✕</BaseButton>
+        </div>
       </div>
       <div class="form-row-2">
         <div class="form-group">
@@ -47,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -85,6 +101,31 @@ onMounted(() => {
 const categoryOptions = computed(() => {
   return categoriesStore.categories.map(c => ({ value: c.id, label: c.name }))
 })
+
+const isCreatingNewCategory = ref(false)
+const newCategoryName = ref('')
+const isSavingCategory = ref(false)
+
+const cancelNewCategory = () => {
+  isCreatingNewCategory.value = false
+  newCategoryName.value = ''
+  form.value.category = ''
+}
+
+const saveNewCategory = async () => {
+  if (!newCategoryName.value.trim()) return
+  isSavingCategory.value = true
+  try {
+    const newCat = await categoriesStore.create(newCategoryName.value.trim())
+    isCreatingNewCategory.value = false
+    newCategoryName.value = ''
+    form.value.category = newCat.id
+  } catch (e) {
+    console.error('Помилка створення категорії', e)
+  } finally {
+    isSavingCategory.value = false
+  }
+}
 
 const apiError = ref('')
 
@@ -155,9 +196,35 @@ const submitForm = async () => {
 
 .price-preview-card { background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 8px; }
 .preview-label { font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.05em; }
-.preview-values { margin: 0; font-family: monospace; display: flex; align-items: baseline; gap: 8px; }
-.main-price { font-size: 1.25rem; font-weight: 700; color: #2563eb; }
-.other-prices { font-size: 0.9rem; color: #94a3b8; }
+.preview-values { margin: 0; display: flex; align-items: center; gap: 8px; }
+.main-price { font-weight: 700; color: #10b981; font-size: 1.1rem; }
+.other-prices { color: #64748b; font-size: 0.9rem; }
+
+.new-category-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.new-category-inline :deep(.input-group) {
+  margin-bottom: 0;
+  flex: 1;
+}
+.cancel-cat-btn {
+  padding: 0 12px;
+}
+
+.dropdown-footer-btn-wrapper {
+  padding: 8px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  border-radius: 0 0 8px 8px;
+}
+.dropdown-new-btn {
+  border-radius: 6px;
+  font-weight: 600;
+  box-shadow: none;
+}
+.w-100 { width: 100%; }
 
 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
 
