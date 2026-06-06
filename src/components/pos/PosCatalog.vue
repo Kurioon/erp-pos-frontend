@@ -4,6 +4,12 @@
       :is-open="isReturnModalOpen"
       @close="isReturnModalOpen = false"
     />
+    <ProductDetailsDrawer
+      :product="selectedProduct"
+      :warehouses="warehousesStore.warehouses"
+      :readonly="true"
+      @close="selectedProduct = null"
+    />
     <div class="catalog-header">
       <FilterBar
         searchPlaceholder="Пошук (назва, артикул, штрихкод)..."
@@ -13,9 +19,9 @@
         @update:filter="onFilterUpdate"
         class="pos-filter"
       />
-      <button class="return-btn" @click="handleReturn">
+      <BaseButton class="return-btn" @click="handleReturn">
         ↺ Повернення
-      </button>
+      </BaseButton>
     </div>
 
     <div v-if="cartStore.isLoading" class="loading-state">
@@ -30,17 +36,22 @@
         :tabindex="product.stock > 0 ? 0 : -1"
         role="button"
         :aria-disabled="product.stock === 0"
-        @click="handleAdd(product)"
-        @keydown.enter.prevent="handleAdd(product)"
-        @keydown.space.prevent="handleAdd(product)"
+        @click="openDrawer(product)"
+        @keydown.enter.prevent="openDrawer(product)"
+        @keydown.space.prevent="openDrawer(product)"
       >
         <h3 class="product-title">{{ product.name }}</h3>
 
         <div class="product-footer">
-          <span class="price">{{ formatCurrency(product.sale_price) }}</span>
-          <span :class="['stock-badge', { 'stock-empty': product.stock === 0 }]">
-            {{ product.stock }} шт
-          </span>
+          <div class="footer-info">
+            <span class="price">{{ formatCurrency(product.sale_price) }}</span>
+            <span :class="['stock-badge', { 'stock-empty': product.stock === 0 }]">
+              {{ product.stock }} шт
+            </span>
+          </div>
+          <BaseButton class="add-btn" @click.stop="handleAdd(product)" :disabled="product.stock === 0">
+            + Додати
+          </BaseButton>
         </div>
       </div>
     </div>
@@ -52,14 +63,23 @@
 import { ref, computed, onMounted } from 'vue'
 import { useCartStore } from '@/stores/pos'
 import { useCategoriesStore } from '@/stores/categories'
+import { useWarehousesStore } from '@/stores/warehouses'
 import { formatCurrency } from '@/utils/formatters'
 import ReturnModal from '@/components/pos/ReturnModal.vue'
 import FilterBar from '@/components/ui/FilterBar.vue'
+import ProductDetailsDrawer from '@/components/warehouses/ProductDetailsDrawer.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const cartStore = useCartStore()
 const categoriesStore = useCategoriesStore()
+const warehousesStore = useWarehousesStore()
 
 const isReturnModalOpen = ref(false)
+const selectedProduct = ref(null)
+
+const openDrawer = (product) => {
+  selectedProduct.value = product
+}
 
 const filters = ref({
   search: '',
@@ -94,6 +114,9 @@ const fetchProducts = () => {
 onMounted(() => {
   if (categoriesStore.categories.length === 0) {
     categoriesStore.fetchList()
+  }
+  if (warehousesStore.warehouses.length === 0) {
+    warehousesStore.fetchWarehouses()
   }
 })
 
@@ -173,7 +196,7 @@ const handleReturn = () => {
   cursor: pointer;
   transition: all 0.2s ease;
   background-color: #ffffff;
-  min-height: 110px;
+  min-height: 160px;
   outline: none;
   position: relative;
   z-index: 1;
@@ -204,6 +227,13 @@ const handleReturn = () => {
 
 .product-footer {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.footer-info {
+  display: flex;
   justify-content: space-between;
   align-items: center;
 }
@@ -227,6 +257,33 @@ const handleReturn = () => {
   background: #fef2f2;
   color: #ef4444;
 }
+
+.add-btn {
+  align-self: stretch;
+  box-sizing: border-box;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.add-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.add-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1023px) {
   .products-section {
     height: 45vh; 
@@ -260,8 +317,8 @@ const handleReturn = () => {
   }
 
   .product-card {
-    padding: 10px;
-    min-height: 90px;
+    padding: 12px;
+    min-height: 140px;
   }
 
   .product-title {
