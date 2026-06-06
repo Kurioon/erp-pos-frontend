@@ -146,17 +146,17 @@
               <template v-if="props.movementHistory.length > 0">
                 <div v-for="record in props.movementHistory" :key="record.id" class="history-item">
                   <div class="history-main">
-                    <span class="history-type" :class="getHistoryTypeClass(record.type)">
-                      {{ record.type || 'Переміщення' }}
+                    <span class="history-type" :class="getHistoryTypeClass(record)">
+                      {{ getHistoryTypeLabel(record) }}
                     </span>
-                    <span class="history-qty" :class="getHistoryQtyClass(record.quantity)">
-                      {{ record.quantity > 0 ? '+' : '' }}{{ record.quantity }} шт
+                    <span class="history-qty" :class="getHistoryQtyClass(record.quantity_change)">
+                      {{ record.quantity_change > 0 ? '+' : '' }}{{ record.quantity_change }} шт
                     </span>
                   </div>
                   <div class="history-meta">
                     <span class="text-muted">{{ formatDate(record.created_at) }}</span>
                     <span class="text-muted">•</span>
-                    <span class="text-muted font-medium text-dark">{{ getWarehouseName(record.warehouse) }}</span>
+                    <span class="text-muted font-medium text-dark">{{ record.warehouse }}</span>
                   </div>
                 </div>
               </template>
@@ -288,9 +288,30 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-const getHistoryTypeClass = (type) => {
-  if (type === 'Надходження' || type === 'IN') return 'type-in'
-  if (type === 'Списання' || type === 'OUT') return 'type-out'
+const getHistoryTypeLabel = (record) => {
+  if (record.reason === 'transfer') {
+    if (record.quantity_change > 0) {
+      return `Отримано з: ${record.transfer_warehouse || 'Іншого складу'}`
+    } else {
+      return `Переміщено в: ${record.transfer_warehouse || 'Інший склад'}`
+    }
+  }
+  
+  const labels = {
+    'sale': 'Продаж',
+    'purchase': 'Закупівля',
+    'return': 'Повернення',
+    'correction': 'Коригування',
+    'move_in': 'Надходження',
+    'move_out': 'Списання'
+  }
+  return labels[record.reason] || record.reason || 'Переміщення'
+}
+
+const getHistoryTypeClass = (record) => {
+  const reason = record.reason
+  if (reason === 'purchase' || reason === 'return' || reason === 'move_in' || (reason === 'transfer' && record.quantity_change > 0)) return 'type-in'
+  if (reason === 'sale' || reason === 'move_out' || (reason === 'transfer' && record.quantity_change < 0)) return 'type-out'
   return 'type-neutral'
 }
 
