@@ -77,7 +77,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRepairsStore } from '@/stores/repairs'
-import { REPAIR_STATUSES, REPAIR_STATUS_LABELS } from '@/constants/repairs'
+import { REPAIR_STATUSES, REPAIR_STATUS_LABELS, ORDERING_OPTIONS } from '@/constants/repairs'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -107,12 +107,7 @@ const statusOptions = [
   }))
 ]
 
-const orderingOptions = [
-  { value: '-created_at', label: 'Спочатку нові' },
-  { value: 'created_at', label: 'Спочатку старі' }
-]
-
-// Removed filterBarConfig as we use inputs directly
+const orderingOptions = ORDERING_OPTIONS
 
 let searchTimeout = null
 const onSearchUpdate = () => {
