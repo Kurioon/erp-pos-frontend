@@ -41,6 +41,7 @@
     <section class="inventory-section">
       <div class="section-header">
         <h2>Номенклатура товарів</h2>
+        <BaseButton @click="isProductModalOpen = true">+ Додати товар</BaseButton>
       </div>
 
       <WarehouseFilters
@@ -80,6 +81,12 @@
       @save="handleSaveWarehouse"
     />
 
+    <ProductFormModal
+      v-if="isProductModalOpen"
+      :is-open="isProductModalOpen"
+      @close="isProductModalOpen = false"
+    />
+
     <BaseModal
       :is-open="!!warehouseToDelete"
       @close="warehouseToDelete = null"
@@ -107,6 +114,7 @@ import WarehouseFilters from '@/components/warehouses/WarehouseFilters.vue'
 import WarehouseTable from '@/components/warehouses/WarehouseTable.vue'
 import ProductDetailsDrawer from '@/components/warehouses/ProductDetailsDrawer.vue'
 import WarehouseFormModal from '@/components/warehouses/WarehouseFormModal.vue'
+import ProductFormModal from '@/components/warehouses/ProductFormModal.vue'
 
 const warehousesStore = useWarehousesStore()
 
@@ -117,6 +125,7 @@ const selectedProduct = ref(null)
 const movementHistory = ref([])
 
 const isWarehouseModalOpen = ref(false)
+const isProductModalOpen = ref(false)
 const editingWarehouse = ref(null)
 const warehouseToDelete = ref(null)
 
@@ -190,10 +199,8 @@ const closeDrawer = () => {
 
 const handleUpdatePrices = async (updatedProductData) => {
   const payload = {
-    purchase_price: String(updatedProductData.purchase_price),
-    wholesale_price: String(updatedProductData.wholesale_price),
-    retail_price: String(updatedProductData.retail_price),
-    sale_price: String(updatedProductData.retail_price)
+    base_price: String(updatedProductData.base_price),
+    base_currency: updatedProductData.base_currency
   }
   await warehousesStore.updateProductPrices(updatedProductData.id, payload)
   closeDrawer()

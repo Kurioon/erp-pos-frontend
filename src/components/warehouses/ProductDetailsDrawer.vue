@@ -63,18 +63,28 @@
             </div>
 
             <div class="edit-form">
-              <p class="section-label">НОВІ ЦІНИ</p>
-              <div class="form-group">
-                <label class="form-label">Закупівельна ціна (₴)</label>
-                <BaseInput v-model.number="localProduct.purchase_price" type="number" />
+              <p class="section-label">БАЗОВА ЦІНА</p>
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Ціна *</label>
+                  <BaseInput v-model.number="localProduct.base_price" type="number" step="0.01" min="0" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Валюта</label>
+                  <select v-model="localProduct.base_currency" class="custom-select">
+                    <option value="UAH">₴ (Гривня)</option>
+                    <option value="USD">$ (Долар США)</option>
+                    <option value="EUR">€ (Євро)</option>
+                  </select>
+                </div>
               </div>
-              <div class="form-group">
-                <label class="form-label">Оптова ціна (₴)</label>
-                <BaseInput v-model.number="localProduct.wholesale_price" type="number" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Роздрібна ціна (₴)</label>
-                <BaseInput v-model.number="localProduct.retail_price" type="number" />
+              
+              <div class="price-preview-card" v-if="localProduct.base_price > 0">
+                <p class="preview-label">Прев'ю ціни:</p>
+                <p class="preview-values">
+                   <span class="main-price">{{ previewUah }} ₴</span>
+                   <span class="other-prices">/ {{ previewUsd }} $ / {{ previewEur }} €</span>
+                </p>
               </div>
             </div>
 
@@ -167,6 +177,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { formatCurrency } from '@/utils/formatters'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import { useExchangeRatesStore } from '@/stores/exchangeRates'
 
 const props = defineProps({
   product: { type: Object, default: null },
@@ -175,6 +186,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save', 'move-stock'])
+
+const exchangeRatesStore = useExchangeRatesStore()
 
 const activePanelTab = ref('edit')
 const localProduct = ref(null)
@@ -187,7 +200,11 @@ const moveForm = ref({
 
 const syncLocalData = () => {
   if (props.product) {
-    localProduct.value = { ...props.product }
+    localProduct.value = { 
+      ...props.product,
+      base_price: Number(props.product.base_price || 0),
+      base_currency: props.product.base_currency || 'USD'
+    }
     moveForm.value = { from_warehouse: '', to_warehouse: '', quantity: 1 }
     activePanelTab.value = 'edit'
   } else {
@@ -195,8 +212,33 @@ const syncLocalData = () => {
   }
 }
 
-onMounted(syncLocalData)
+onMounted(() => {
+  syncLocalData()
+  if (exchangeRatesStore.rates.length === 0) {
+    exchangeRatesStore.fetchRates()
+  }
+})
 watch(() => props.product, syncLocalData, { deep: true })
+
+const previewUah = computed(() => {
+  if (!localProduct.value || !localProduct.value.base_price) return '0.00'
+  const rate = exchangeRatesStore.getRate(localProduct.value.base_currency)
+  return (localProduct.value.base_price * rate).toFixed(2)
+})
+
+const previewUsd = computed(() => {
+  if (!localProduct.value || !localProduct.value.base_price) return '0.00'
+  const uah = Number(previewUah.value)
+  const rate = exchangeRatesStore.getRate('USD')
+  return rate ? (uah / rate).toFixed(2) : '0.00'
+})
+
+const previewEur = computed(() => {
+  if (!localProduct.value || !localProduct.value.base_price) return '0.00'
+  const uah = Number(previewUah.value)
+  const rate = exchangeRatesStore.getRate('EUR')
+  return rate ? (uah / rate).toFixed(2) : '0.00'
+})
 
 const activeStocks = computed(() => {
   if (!props.product || !props.product.stock_details) return []
@@ -309,4 +351,12 @@ const getHistoryQtyClass = (qty) => {
 .prices-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .price-label { font-size: 0.75rem; color: #64748b; margin: 0 0 2px 0; font-weight: 500; }
 .price-val { font-size: 0.85rem; font-weight: 700; color: #1e293b; margin: 0; word-wrap: break-word; line-height: 1.2; }
+
+.form-row-2 { display: flex; gap: 16px; margin-bottom: 12px; }
+.form-row-2 .form-group { flex: 1; }
+.price-preview-card { background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 8px; }
+.preview-label { font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.05em; }
+.preview-values { margin: 0; font-family: monospace; display: flex; align-items: baseline; gap: 8px; }
+.main-price { font-size: 1.25rem; font-weight: 700; color: #2563eb; }
+.other-prices { font-size: 0.9rem; color: #94a3b8; }
 </style>

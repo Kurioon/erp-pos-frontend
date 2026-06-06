@@ -30,16 +30,10 @@
       </div>
 
       <div class="items-section">
-        <div class="items-section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <p class="section-subtitle" style="margin-bottom: 0;">СПИСОК ТОВАРІВ</p>
-          <FilterBar
-            searchPlaceholder="Шукати товар..."
-            :filters="filterBarConfig"
-            :modelValue="filters.search"
-            @update:search="onSearchUpdate"
-            @update:filter="onFilterUpdate"
-            style="width: auto; padding: 4px; margin-bottom: 0; border: none; background: transparent;"
-          />
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+          <BaseButton variant="primary" @click.stop="openProductModal(null)">
+            + Додати товар
+          </BaseButton>
         </div>
 
         <div class="items-blank-list">
@@ -50,18 +44,37 @@
                 :options="productOptions"
                 placeholder="Оберіть товар..."
                 @update:modelValue="handleProductChange(item)"
-              />
+              >
+                <template #header>
+                  <div class="product-dropdown-filters">
+                    <input 
+                      type="text" 
+                      v-model="filters.search" 
+                      @input="onSearchInput" 
+                      placeholder="Пошук товару..." 
+                      class="dropdown-search-input"
+                    />
+                    <select v-model="filters.category" @change="onCategoryChange" class="dropdown-category-select">
+                      <option value="">Всі категорії</option>
+                      <option v-for="c in categoriesStore.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
+                  </div>
+                </template>
+              </BaseSelect>
             </div>
-            <div class="fg-qty">
-              <BaseInput type="number" v-model.number="item.qty" min="1" placeholder="К-сть" />
-            </div>
-            <div class="fg-price">
-              <BaseInput type="number" v-model.number="item.price" min="0" placeholder="Ціна" />
-            </div>
-            <div class="fg-action">
-              <button class="remove-item-btn" @click="removeFormItem(index)" :disabled="localOrder.items.length === 1">
-                ×
-              </button>
+            
+            <div class="row-bottom">
+              <div class="fg-qty">
+                <BaseInput type="number" v-model.number="item.qty" min="1" placeholder="К-сть" />
+              </div>
+              <div class="fg-price">
+                <BaseInput type="number" v-model.number="item.price" min="0" placeholder="Ціна" />
+              </div>
+              <div class="fg-action">
+                <button class="remove-item-btn" @click="removeFormItem(index)" :disabled="localOrder.items.length === 1">
+                  ×
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -83,6 +96,13 @@
       </div>
 
     </div>
+
+    <ProductFormModal
+      v-if="isProductModalOpen"
+      :is-open="isProductModalOpen"
+      @close="isProductModalOpen = false"
+      @save="onProductCreated"
+    />
   </BaseModal>
 </template>
 
@@ -95,6 +115,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import FilterBar from '@/components/ui/FilterBar.vue'
+import ProductFormModal from '@/components/warehouses/ProductFormModal.vue'
 import { useCategoriesStore } from '@/stores/categories'
 
 const props = defineProps({
@@ -113,18 +134,44 @@ const filters = ref({
   category: ''
 })
 
-const filterBarConfig = computed(() => [
-  { key: 'category', label: 'Всі категорії', options: [{ value: '', label: 'Всі категорії' }, ...categoriesStore.categories.map(c => ({ value: c.id, label: c.name }))] }
-])
+let searchTimeout = null
+const onSearchInput = () => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    cartStore.fetchProducts(1, filters.value)
+  }, 300)
+}
 
-const onSearchUpdate = (val) => {
-  filters.value.search = val
+const onCategoryChange = () => {
   cartStore.fetchProducts(1, filters.value)
 }
 
-const onFilterUpdate = ({ key, value }) => {
-  filters.value[key] = value
-  cartStore.fetchProducts(1, filters.value)
+const isProductModalOpen = ref(false)
+const targetItemRow = ref(null)
+
+const openProductModal = (item) => {
+  targetItemRow.value = item
+  isProductModalOpen.value = true
+}
+
+const onProductCreated = async (newProduct) => {
+  // Додаємо створений товар в локальний список cartStore, щоб він одразу з'явився в опціях
+  if (!cartStore.products.find(p => p.id === newProduct.id)) {
+    cartStore.products.unshift(newProduct)
+  }
+  
+  // Якщо створення викликано для конкретного рядка (якого вже немає, бо кнопка зверху), 
+  // але ми можемо підставити його в порожній рядок
+  const emptyRow = localOrder.value.items.find(i => !i.product_id)
+  if (emptyRow) {
+    emptyRow.product_id = newProduct.id
+    handleProductChange(emptyRow)
+  } else {
+    // Або створюємо новий рядок
+    const newItem = { product_id: newProduct.id, qty: 1, price: 0 }
+    localOrder.value.items.push(newItem)
+    handleProductChange(newItem)
+  }
 }
 
 const isAddingNewSupplier = ref(false)
@@ -262,18 +309,19 @@ const submitForm = () => {
 
 .form-item-row {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 12px; /* Збільшили відступ між колонками */
+  flex-direction: column;
+  gap: 12px;
   background: #f8fafc;
-  padding: 12px 16px; /* Збільшили внутрішні відступи */
+  padding: 12px 16px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
-  align-items: center;
+  align-items: stretch;
 }
 
-.fg-name { flex: 1 1 140px; min-width: 0; }
-.fg-qty { width: 75px; flex: 0 0 75px; min-width: 0; }
-.fg-price { width: 100px; flex: 0 0 100px; min-width: 0; } /* Розширили поле ціни */
+.fg-name { width: 100%; }
+.row-bottom { display: flex; gap: 12px; align-items: center; justify-content: flex-end; }
+.fg-qty { width: 100px; flex: 0 0 100px; }
+.fg-price { width: 140px; flex: 0 0 140px; }
 .fg-action { width: 32px; flex: 0 0 32px; display: flex; justify-content: flex-end; }
 
 .fg-qty :deep(input), .fg-price :deep(input) {
@@ -294,4 +342,8 @@ const submitForm = () => {
 .total-label { font-size: 0.7rem; color: #64748b; font-weight: 700; letter-spacing: 0.05em; }
 .total-sum-value { font-size: 1.4rem; font-weight: 700; color: #2563eb; margin-top: 4px; }
 .footer-actions { display: flex; gap: 12px; }
+
+.product-dropdown-filters { padding: 8px; border-bottom: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 8px; background: #f8fafc; }
+.dropdown-search-input, .dropdown-category-select { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 0.85rem; }
+.dropdown-search-input:focus, .dropdown-category-select:focus { border-color: #2563eb; }
 </style>
