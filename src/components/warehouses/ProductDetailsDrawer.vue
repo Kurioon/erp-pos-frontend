@@ -13,22 +13,81 @@
         </div>
 
         <div class="panel-tabs">
-          <button class="tab-btn" :class="{ active: activePanelTab === 'edit' }" @click="activePanelTab = 'edit'">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-            Загальне
-          </button>
-          <button class="tab-btn" :class="{ active: activePanelTab === 'move' }" @click="activePanelTab = 'move'">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l4-4 4 4"></path><path d="M9 5v14"></path><path d="M19 15l-4 4-4-4"></path><path d="M15 19V5"></path></svg>
+          <BaseButton class="tab-btn" :class="{ active: activePanelTab === 'info' }" @click="activePanelTab = 'info'">
+            <IconInfo />
+            Інфо
+          </BaseButton>
+          <BaseButton v-if="!props.readonly" class="tab-btn" :class="{ active: activePanelTab === 'edit' }" @click="activePanelTab = 'edit'">
+            <IconEdit />
+            Ціни
+          </BaseButton>
+          <BaseButton v-if="!props.readonly" class="tab-btn" :class="{ active: activePanelTab === 'move' }" @click="activePanelTab = 'move'">
+            <IconMove />
             Перемістити
-          </button>
-          <button class="tab-btn" :class="{ active: activePanelTab === 'history' }" @click="activePanelTab = 'history'">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+          </BaseButton>
+          <BaseButton class="tab-btn" :class="{ active: activePanelTab === 'history' }" @click="activePanelTab = 'history'">
+            <IconHistory />
             Рух
-          </button>
+          </BaseButton>
         </div>
 
         <div class="panel-content">
-          <div v-if="activePanelTab === 'edit'" class="edit-tab">
+          <div v-if="activePanelTab === 'info'" class="info-tab">
+            <div v-if="isLoadingDetails" class="loading-state">
+              Завантаження деталей...
+            </div>
+            <div v-else-if="fullProductDetails">
+              <div class="info-card">
+                <p class="section-label">ОСНОВНА ІНФОРМАЦІЯ</p>
+                <div class="info-row">
+                  <span class="info-label">Назва:</span>
+                  <span class="info-val">{{ fullProductDetails.name }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Категорія:</span>
+                  <span class="info-val">{{ fullProductDetails.category_name || 'Без категорії' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Постачальник:</span>
+                  <span class="info-val">{{ fullProductDetails.supplier_name || '—' }}</span>
+                </div>
+              </div>
+
+              <div class="info-card">
+                <p class="section-label">ЗАЛИШКИ НА СКЛАДАХ</p>
+                <div class="stock-list">
+                  <template v-if="displayStocks.length > 0">
+                    <div v-for="(stock, idx) in displayStocks" :key="idx" class="stock-item">
+                      <span class="stock-name">{{ stock.warehouse_name || `Склад #${stock.warehouse}` }}</span>
+                      <span class="stock-qty" :class="{ 'text-muted': stock.quantity === 0 }">{{ stock.quantity }} шт</span>
+                    </div>
+                  </template>
+                  <div v-else class="empty-stock">
+                    Склади не знайдені
+                  </div>
+                </div>
+              </div>
+
+              <div class="info-card">
+                <p class="section-label">ЦІНА ПРОДАЖУ</p>
+                <div class="prices-grid">
+                  <div>
+                    <p class="price-val main-price">{{ formatCurrency(fullProductDetails.price_uah || 0, 'UAH') }}</p>
+                  </div>
+                  <div>
+                    <p class="price-label">USD</p>
+                    <p class="price-val">{{ formatCurrency(fullProductDetails.price_usd || 0, 'USD') }}</p>
+                  </div>
+                  <div>
+                    <p class="price-label">EUR</p>
+                    <p class="price-val">{{ formatCurrency(fullProductDetails.price_eur || 0, 'EUR') }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="activePanelTab === 'edit' && !props.readonly" class="edit-tab">
             <div class="info-card">
               <p class="section-label">ЗАЛИШКИ НА СКЛАДАХ</p>
               <div class="stock-list">
@@ -66,8 +125,7 @@
               <p class="section-label">БАЗОВА ЦІНА</p>
               <div class="form-row-2">
                 <div class="form-group">
-                  <label class="form-label">Ціна *</label>
-                  <BaseInput v-model.number="localProduct.base_price" type="number" step="0.01" min="0" />
+                  <BaseInput label="Ціна *" v-model.number="localProduct.base_price" type="number" step="0.01" min="0" />
                 </div>
                 <div class="form-group">
                   <label class="form-label">Валюта</label>
@@ -93,7 +151,7 @@
             </div>
           </div>
 
-          <div v-else-if="activePanelTab === 'move'" class="move-tab">
+          <div v-else-if="activePanelTab === 'move' && !props.readonly" class="move-tab">
             <p class="section-label">ВНУТРІШНЄ ПЕРЕМІЩЕННЯ</p>
 
             <div class="info-card mb-4">
@@ -128,8 +186,7 @@
               </div>
 
               <div class="form-group">
-                <label class="form-label">Кількість (шт)</label>
-                <BaseInput v-model.number="moveForm.quantity" type="number" min="1" :max="maxMoveQuantity" />
+                <BaseInput label="Кількість (шт)" v-model.number="moveForm.quantity" type="number" min="1" :max="maxMoveQuantity" />
               </div>
             </div>
 
@@ -143,8 +200,8 @@
           <div v-else class="history-tab">
             <p class="section-label">ІСТОРІЯ РУХУ ТОВАРУ</p>
             <div class="history-list">
-              <template v-if="props.movementHistory.length > 0">
-                <div v-for="record in props.movementHistory" :key="record.id" class="history-item">
+              <template v-if="localMovementHistory.length > 0">
+                <div v-for="record in localMovementHistory" :key="record.id" class="history-item">
                   <div class="history-main">
                     <span class="history-type" :class="getHistoryTypeClass(record)">
                       {{ getHistoryTypeLabel(record) }}
@@ -174,29 +231,100 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import api from '@/api/axios'
 import { formatCurrency } from '@/utils/formatters'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import IconEdit from '@/components/icons/IconEdit.vue'
+import IconMove from '@/components/icons/IconMove.vue'
+import IconHistory from '@/components/icons/IconHistory.vue'
+import IconInfo from '@/components/icons/IconInfo.vue'
 import { useExchangeRatesStore } from '@/stores/exchangeRates'
 
 const props = defineProps({
   product: { type: Object, default: null },
-  movementHistory: { type: Array, required: true },
-  warehouses: { type: Array, default: () => [] }
+  movementHistory: { type: Array, default: () => [] },
+  warehouses: { type: Array, default: () => [] },
+  readonly: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['close', 'save', 'move-stock'])
 
 const exchangeRatesStore = useExchangeRatesStore()
 
-const activePanelTab = ref('edit')
+const activePanelTab = ref('info')
 const localProduct = ref(null)
+const fullProductDetails = ref(null)
+const productStocks = ref([])
+const localMovementHistory = ref([])
+const isLoadingDetails = ref(false)
+
+const displayStocks = computed(() => {
+  if (!props.warehouses || props.warehouses.length === 0) return productStocks.value;
+  return props.warehouses.map(w => {
+    const stock = productStocks.value.find(s => s.warehouse === w.id);
+    return {
+      warehouse: w.id,
+      warehouse_name: w.name,
+      quantity: stock ? stock.quantity : 0
+    }
+  });
+})
 
 const moveForm = ref({
   from_warehouse: '',
   to_warehouse: '',
   quantity: 1
 })
+
+const fetchAllPages = async (url) => {
+  let allItems = []
+  let page = 1
+  while (true) {
+    try {
+      const { data } = await api.get(url, { params: { page } })
+      if (data.results) allItems = allItems.concat(data.results)
+      else if (Array.isArray(data)) { allItems = allItems.concat(data); break; }
+      else break;
+      if (!data.next) break;
+      page++
+    } catch(e) {
+      break;
+    }
+  }
+  return allItems
+}
+
+const fetchDetails = async (id) => {
+  isLoadingDetails.value = true
+  try {
+    const [prodRes, rawStocks, movementsRes] = await Promise.all([
+      api.get(`/products/${id}/`),
+      fetchAllPages(`/warehouse-stocks/?nomenclature=${id}`),
+      api.get(`/stock-movements/?nomenclature=${id}`)
+    ])
+    fullProductDetails.value = prodRes.data
+    
+    const groupedStocks = {}
+    rawStocks.forEach(s => {
+      // Backup filter in case backend returns all items
+      if (Number(s.nomenclature) !== Number(id)) return;
+      
+      const wid = s.warehouse
+      if (!groupedStocks[wid]) {
+        groupedStocks[wid] = { ...s, quantity: Number(s.quantity) || 0 }
+      } else {
+        groupedStocks[wid].quantity += Number(s.quantity) || 0
+      }
+    })
+    productStocks.value = Object.values(groupedStocks)
+    localMovementHistory.value = movementsRes.data.results || movementsRes.data || []
+  } catch(e) {
+    console.error('Error fetching product details:', e)
+  } finally {
+    isLoadingDetails.value = false
+  }
+}
 
 const syncLocalData = () => {
   if (props.product) {
@@ -206,9 +334,16 @@ const syncLocalData = () => {
       base_currency: props.product.base_currency || 'USD'
     }
     moveForm.value = { from_warehouse: '', to_warehouse: '', quantity: 1 }
-    activePanelTab.value = 'edit'
+    activePanelTab.value = 'info'
+    fullProductDetails.value = null
+    productStocks.value = []
+    localMovementHistory.value = []
+    fetchDetails(props.product.id)
   } else {
     localProduct.value = null
+    fullProductDetails.value = null
+    productStocks.value = []
+    localMovementHistory.value = []
   }
 }
 
@@ -268,7 +403,7 @@ const isMoveValid = computed(() => {
          moveForm.value.quantity <= maxMoveQuantity.value
 })
 
-const submitMove = () => {
+const submitMove = async () => {
   emit('move-stock', {
     product_id: localProduct.value.id,
     from_warehouse: moveForm.value.from_warehouse,
@@ -277,6 +412,14 @@ const submitMove = () => {
   })
   moveForm.value = { from_warehouse: '', to_warehouse: '', quantity: 1 }
   activePanelTab.value = 'history'
+  
+  // Refresh history after move
+  try {
+    const movementsRes = await api.get(`/stock-movements/?nomenclature=${localProduct.value.id}`)
+    localMovementHistory.value = movementsRes.data.results || movementsRes.data || []
+  } catch(e) {
+    console.error(e)
+  }
 }
 
 const handleSave = () => {
@@ -332,8 +475,8 @@ const getHistoryQtyClass = (qty) => {
 .close-btn:hover { background: #e2e8f0; color: #0f172a; }
 
 .panel-tabs { display: flex; border-bottom: 1px solid #e2e8f0; padding: 0 24px; background-color: #f8fafc; }
-.tab-btn { flex: 1; padding: 14px 0; background: transparent; border: none; border-bottom: 2px solid transparent; font-size: 0.85rem; font-weight: 600; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
-.tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+.tab-btn { flex: 1; padding: 14px 0 !important; background: transparent !important; border: none !important; border-bottom: 2px solid transparent !important; font-size: 0.85rem !important; font-weight: 600 !important; color: #64748b !important; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; min-width: unset !important; }
+.tab-btn.active { color: #2563eb !important; border-bottom-color: #2563eb !important; }
 
 .panel-content { padding: 24px; flex: 1; overflow-y: auto; }
 .section-label { font-size: 0.75rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em; margin-bottom: 14px; }
@@ -345,6 +488,7 @@ const getHistoryQtyClass = (qty) => {
 .stock-item:last-child { border-bottom: none; padding-bottom: 0; }
 .stock-name { font-size: 0.9rem; color: #334155; font-weight: 600; }
 .stock-qty { font-size: 0.85rem; color: #2563eb; font-weight: 700; background: #eff6ff; padding: 4px 10px; border-radius: 6px; }
+.stock-qty.text-muted { color: #94a3b8 !important; background: transparent !important; }
 .empty-stock { font-size: 0.85rem; color: #94a3b8; font-style: italic; }
 
 .edit-form { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
@@ -380,4 +524,9 @@ const getHistoryQtyClass = (qty) => {
 .preview-values { margin: 0; font-family: monospace; display: flex; align-items: baseline; gap: 8px; }
 .main-price { font-size: 1.25rem; font-weight: 700; color: #2563eb; }
 .other-prices { font-size: 0.9rem; color: #94a3b8; }
+.info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; }
+.info-row:last-child { border-bottom: none; padding-bottom: 0; }
+.info-label { font-size: 0.85rem; color: #64748b; font-weight: 600; }
+.info-val { font-size: 0.95rem; color: #1e293b; font-weight: 500; text-align: right; }
+.loading-state { text-align: center; padding: 40px; color: #64748b; font-size: 0.9rem; }
 </style>
