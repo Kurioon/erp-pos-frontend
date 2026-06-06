@@ -11,15 +11,15 @@
       </div>
       <div class="detail-row">
         <span>Загальна сума чеку:</span>
-        <b>{{ formatCurrency(order.total_amount, 'UAH') }}</b>
+        <b>{{ formatCurrency(order.total_amount, order.currency) }}</b>
       </div>
       <div class="detail-row">
         <span>Вже сплачено:</span>
-        <b class="amt-positive">{{ formatCurrency(Number(order.total_amount) - Number(order.balance_due), 'UAH') }}</b>
+        <b class="amt-positive">{{ formatCurrency(Number(order.total_amount) - Number(order.balance_due), order.currency) }}</b>
       </div>
       <div class="detail-row highlight-row">
         <span>Залишок до оплати (Борг):</span>
-        <b class="amt-negative">{{ formatCurrency(order.balance_due, 'UAH') }}</b>
+        <b class="amt-negative">{{ formatCurrency(order.balance_due, order.currency) }}</b>
       </div>
     </div>
   </BaseModal>
