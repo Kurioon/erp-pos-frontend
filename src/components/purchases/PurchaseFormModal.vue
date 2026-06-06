@@ -88,10 +88,12 @@
           <span class="total-sum-value">{{ formatCurrency(formTotalSum, 'UAH') }}</span>
         </div>
         <div class="footer-actions">
-          <BaseButton variant="secondary" @click="emit('close')">Скасувати</BaseButton>
-          <BaseButton variant="primary" @click="submitForm" :disabled="!isFormValid">
-            Зберегти
-          </BaseButton>
+          <BaseButton variant="secondary" @click="submitDraft">Зберегти чернетку</BaseButton>
+          <div style="position: relative; display: inline-block;" :title="!isFormValid ? 'Додайте хоча б один товар' : ''">
+            <BaseButton variant="primary" @click="submitConfirm" :disabled="!isFormValid">
+              Підтвердити
+            </BaseButton>
+          </div>
         </div>
       </div>
 
@@ -260,24 +262,41 @@ const removeFormItem = (index) => { if (localOrder.value.items.length > 1) local
 
 const formTotalSum = computed(() => localOrder.value.items.reduce((sum, item) => sum + (item.qty * item.price || 0), 0))
 
+const validItems = computed(() => localOrder.value.items.filter(i => i.product_id !== '' && i.qty > 0))
+
 const isFormValid = computed(() => {
-  // Задача 5: постачальник необов'язковий
-  return localOrder.value.items.every(i => i.product_id !== '' && i.qty > 0)
+  return validItems.value.length > 0
 })
 
-const submitForm = () => {
+const submitDraft = () => {
+  const payload = {
+    comment_ttn: localOrder.value.supplier
+      ? `Постачальник: ${localOrder.value.supplier} | Дата: ${localOrder.value.date}`
+      : `Дата: ${localOrder.value.date}`,
+    total_amount: formTotalSum.value,
+    items: validItems.value.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price }))
+  }
+  if (localOrder.value.supplier) {
+    payload.supplier = localOrder.value.supplier
+  }
+  emit('save', payload)
+}
+
+const submitConfirm = () => {
   if (!isFormValid.value) return
   const payload = {
     comment_ttn: localOrder.value.supplier
       ? `Постачальник: ${localOrder.value.supplier} | Дата: ${localOrder.value.date}`
       : `Дата: ${localOrder.value.date}`,
     total_amount: formTotalSum.value,
-    items: localOrder.value.items.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price }))
+    items: validItems.value.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price })),
+    status: 'pending' // TODO: or 'received' depending on logic, for now draft is enough, emit 'save-confirm' if supported. Wait, ProcurementView just handles 'save' as draft.
   }
-  // Задача 5: якщо є supplier — передаємо; якщо ні — не передаємо (nullable на бекенді)
   if (localOrder.value.supplier) {
     payload.supplier = localOrder.value.supplier
   }
+  // If ProcurementView doesn't handle save-confirm yet, we just emit save for now.
+  payload.auto_confirm = true
   emit('save', payload)
 }
 </script>

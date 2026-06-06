@@ -145,13 +145,19 @@ const handleAddSupplier = (supplierName) => {
 }
 
 const handleSaveOrder = async (payload) => {
+  let savedOrder;
   if (!isEditMode.value) {
-    await procurementStore.createOrder(payload)
+    savedOrder = await procurementStore.createOrder(payload)
   } else {
-    await procurementStore.updateOrder(selectedOrder.value.id, payload)
+    savedOrder = await procurementStore.updateOrder(selectedOrder.value.id, payload)
   }
+  
   isModalOpen.value = false
   applyFilters()
+
+  if (payload.auto_confirm && savedOrder) {
+    openReceiveModal(savedOrder.id)
+  }
 }
 
 const openReceiveModal = (id) => {
