@@ -29,24 +29,38 @@
     </header>
 
     <transition name="fade">
-      <div v-if="viewMode === 'table'" class="filters-section" style="padding: 0; background: transparent; border: none; margin-bottom: 32px; display: flex; gap: 12px; align-items: center;">
-        <FilterBar
-          searchPlaceholder="Пошук (ID, телефон, пристрій)..."
-          :filters="filterBarConfig"
-          :modelValue="filters.search"
-          @update:search="onSearchUpdate"
-          @update:filter="onFilterUpdate"
-          style="margin-bottom: 0; flex: 2;"
+      <div v-if="viewMode === 'table'" class="filters-section">
+        <BaseInput
+          v-model="filters.search"
+          label="Пошук"
+          placeholder="ID, телефон, пристрій..."
+          @update:modelValue="onSearchUpdate"
+        />
+        <BaseSelect
+          v-model="filters.status"
+          label="Статус"
+          :options="statusOptions"
+          placeholder="Всі статуси"
+          @update:modelValue="onFilterUpdate"
+        />
+        <BaseSelect
+          v-model="filters.ordering"
+          label="Сортування"
+          :options="orderingOptions"
+          placeholder="Сортування"
+          @update:modelValue="onFilterUpdate"
         />
         <BaseInput
           v-model="filters.storage_cell"
-          placeholder="Комірка (напр. R1)"
-          @keyup.enter="applyFilters"
-          style="flex: 1; min-width: 140px; margin-bottom: 0;"
+          label="Комірка"
+          placeholder="напр. R1"
+          @keyup.enter="onFilterUpdate"
         />
-        <BaseButton variant="secondary" @click="resetFilters" class="reset-btn" style="height: 52px; align-self: flex-start;">
-          Скинути
-        </BaseButton>
+        <div class="filter-actions">
+          <BaseButton variant="secondary" @click="resetFilters" class="reset-btn">
+            Скинути
+          </BaseButton>
+        </div>
       </div>
     </transition>
 
@@ -63,11 +77,10 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRepairsStore } from '@/stores/repairs'
-import { REPAIR_STATUSES, REPAIR_STATUS_LABELS } from '@/constants/repairs'
+import { REPAIR_STATUSES, REPAIR_STATUS_LABELS, ORDERING_OPTIONS } from '@/constants/repairs'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
-import FilterBar from '@/components/ui/FilterBar.vue'
 import RepairFormModal from '@/components/repairs/RepairFormModal.vue'
 import RepairsBoard from '@/components/repairs/RepairsBoard.vue'
 import RepairsTable from '@/components/repairs/RepairsTable.vue'
@@ -94,23 +107,17 @@ const statusOptions = [
   }))
 ]
 
-const orderingOptions = [
-  { value: '-created_at', label: 'Спочатку нові' },
-  { value: 'created_at', label: 'Спочатку старі' }
-]
+const orderingOptions = ORDERING_OPTIONS
 
-const filterBarConfig = computed(() => [
-  { key: 'status', label: 'Всі статуси', options: statusOptions },
-  { key: 'ordering', label: 'Сортування', options: orderingOptions }
-])
-
-const onSearchUpdate = (val) => {
-  filters.value.search = val
-  applyFilters()
+let searchTimeout = null
+const onSearchUpdate = () => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    applyFilters()
+  }, 400)
 }
 
-const onFilterUpdate = ({ key, value }) => {
-  filters.value[key] = value
+const onFilterUpdate = () => {
   applyFilters()
 }
 
@@ -204,26 +211,25 @@ const currentViewComponent = computed(() => {
 }
 
 .filters-section {
-  display: flex;
-  gap: 12px;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
+  gap: 16px;
+  align-items: end;
   background: #f8fafc;
-  padding: 16px;
+  padding: 16px 20px;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  margin-bottom: 32px;
-  flex-wrap: wrap;
-  width: 100%;
+  margin-bottom: 24px;
 }
 
-.filter-item :deep(div) { margin-bottom: 0 !important; }
-.filter-item { margin-bottom: 0 !important; flex: 1; min-width: 180px; }
-
-.reset-btn {
-  flex-shrink: 0;
-  height: 42px;
+.filter-actions {
   display: flex;
   align-items: center;
+}
+
+.reset-btn {
+  height: 42px;
+  padding: 0 20px;
   white-space: nowrap;
 }
 
@@ -264,7 +270,12 @@ const currentViewComponent = computed(() => {
 
 @media (max-width: 768px) {
   .repairs-view { padding: 16px; }
-  .filters-section { flex-direction: column; align-items: stretch; }
+  .filters-section { grid-template-columns: 1fr; align-items: stretch; }
   .reset-btn { width: 100%; justify-content: center; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .filters-section { grid-template-columns: 1fr 1fr; }
+  .filter-search { grid-column: span 2; }
 }
 </style>
