@@ -29,33 +29,22 @@
     </header>
 
     <transition name="fade">
-      <div v-if="viewMode === 'table'" class="filters-section">
-        <BaseInput
-          v-model="filters.search"
-          placeholder="Пошук (телефон, пристрій)..."
-          @keyup.enter="applyFilters"
-          class="filter-item filter-search"
-        />
-        <BaseSelect
-          v-model="filters.status"
-          :options="statusOptions"
-          placeholder="Всі статуси"
-          @update:modelValue="applyFilters"
-          class="filter-item filter-select"
+      <div v-if="viewMode === 'table'" class="filters-section" style="padding: 0; background: transparent; border: none; margin-bottom: 32px; display: flex; gap: 12px; align-items: center;">
+        <FilterBar
+          searchPlaceholder="Пошук (ID, телефон, пристрій)..."
+          :filters="filterBarConfig"
+          :modelValue="filters.search"
+          @update:search="onSearchUpdate"
+          @update:filter="onFilterUpdate"
+          style="margin-bottom: 0; flex: 2;"
         />
         <BaseInput
           v-model="filters.storage_cell"
           placeholder="Комірка (напр. R1)"
           @keyup.enter="applyFilters"
-          class="filter-item filter-cell"
+          style="flex: 1; min-width: 140px; margin-bottom: 0;"
         />
-        <BaseSelect
-          v-model="filters.ordering"
-          :options="orderingOptions"
-          @update:modelValue="applyFilters"
-          class="filter-item filter-select"
-        />
-        <BaseButton variant="secondary" @click="resetFilters" class="reset-btn">
+        <BaseButton variant="secondary" @click="resetFilters" class="reset-btn" style="height: 52px; align-self: flex-start;">
           Скинути
         </BaseButton>
       </div>
@@ -78,6 +67,7 @@ import { REPAIR_STATUSES, REPAIR_STATUS_LABELS } from '@/constants/repairs'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
+import FilterBar from '@/components/ui/FilterBar.vue'
 import RepairFormModal from '@/components/repairs/RepairFormModal.vue'
 import RepairsBoard from '@/components/repairs/RepairsBoard.vue'
 import RepairsTable from '@/components/repairs/RepairsTable.vue'
@@ -108,6 +98,21 @@ const orderingOptions = [
   { value: '-created_at', label: 'Спочатку нові' },
   { value: 'created_at', label: 'Спочатку старі' }
 ]
+
+const filterBarConfig = computed(() => [
+  { key: 'status', label: 'Всі статуси', options: statusOptions },
+  { key: 'ordering', label: 'Сортування', options: orderingOptions }
+])
+
+const onSearchUpdate = (val) => {
+  filters.value.search = val
+  applyFilters()
+}
+
+const onFilterUpdate = ({ key, value }) => {
+  filters.value[key] = value
+  applyFilters()
+}
 
 const applyFilters = () => {
   repairsStore.fetchJobs(1, filters.value)

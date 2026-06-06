@@ -30,7 +30,17 @@
       </div>
 
       <div class="items-section">
-        <p class="section-subtitle">СПИСОК ТОВАРІВ</p>
+        <div class="items-section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <p class="section-subtitle" style="margin-bottom: 0;">СПИСОК ТОВАРІВ</p>
+          <FilterBar
+            searchPlaceholder="Шукати товар..."
+            :filters="filterBarConfig"
+            :modelValue="filters.search"
+            @update:search="onSearchUpdate"
+            @update:filter="onFilterUpdate"
+            style="width: auto; padding: 4px; margin-bottom: 0; border: none; background: transparent;"
+          />
+        </div>
 
         <div class="items-blank-list">
           <div v-for="(item, index) in localOrder.items" :key="index" class="form-item-row">
@@ -84,6 +94,8 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
+import FilterBar from '@/components/ui/FilterBar.vue'
+import { useCategoriesStore } from '@/stores/categories'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -94,6 +106,26 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'save', 'add-supplier'])
 const cartStore = useCartStore()
+const categoriesStore = useCategoriesStore()
+
+const filters = ref({
+  search: '',
+  category: ''
+})
+
+const filterBarConfig = computed(() => [
+  { key: 'category', label: 'Всі категорії', options: [{ value: '', label: 'Всі категорії' }, ...categoriesStore.categories.map(c => ({ value: c.id, label: c.name }))] }
+])
+
+const onSearchUpdate = (val) => {
+  filters.value.search = val
+  cartStore.fetchProducts(1, filters.value)
+}
+
+const onFilterUpdate = ({ key, value }) => {
+  filters.value[key] = value
+  cartStore.fetchProducts(1, filters.value)
+}
 
 const isAddingNewSupplier = ref(false)
 const newSupplierName = ref('')
@@ -136,6 +168,9 @@ watch(() => props.orderData, (newData) => {
 }, { immediate: true })
 
 onMounted(async () => {
+  if (categoriesStore.categories.length === 0) {
+    categoriesStore.fetchList()
+  }
   if (cartStore.products.length === 0) {
     await cartStore.fetchProducts()
   }
