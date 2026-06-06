@@ -47,6 +47,11 @@ export const useRepairsStore = defineStore('repairs', () => {
       formData.append('device_name', jobData.device_name)
       formData.append('description', jobData.description)
 
+      if (jobData.price !== undefined && jobData.price !== null && jobData.price !== '') {
+        formData.append('price', jobData.price)
+      }
+      if (jobData.device) formData.append('device', jobData.device)
+
       if (jobData.comment) formData.append('comment', jobData.comment)
       if (jobData.storage_cell) formData.append('storage_cell', jobData.storage_cell)
       if (photoFile) formData.append('photo', photoFile)
@@ -96,6 +101,11 @@ export const useRepairsStore = defineStore('repairs', () => {
       if (jobData.device_name) formData.append('device_name', jobData.device_name)
       if (jobData.description) formData.append('description', jobData.description)
       if (jobData.storage_cell) formData.append('storage_cell', jobData.storage_cell)
+
+      if (jobData.price !== undefined && jobData.price !== null && jobData.price !== '') {
+        formData.append('price', jobData.price)
+      }
+      if (jobData.device) formData.append('device', jobData.device)
 
       if (jobData.comment) formData.append('comment', jobData.comment)
       if (photoFile) formData.append('photo', photoFile)
