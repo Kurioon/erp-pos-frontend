@@ -111,7 +111,7 @@ const dashboardMetrics = computed(() => {
   financeStore.transactions.forEach(tx => {
     const txDate = (tx.timestamp || tx.created_at || '').split('T')[0]
     if (txDate === today && !['expense', 'refund'].includes(tx.transaction_type)) {
-      todaysIncome += Number(tx.amount)
+      todaysIncome += Number(tx.amount_uah || tx.amount)
       if (tx.order) todaysSalesCount++
     }
   })

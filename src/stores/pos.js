@@ -13,7 +13,15 @@ export const useCartStore = defineStore('pos', () => {
   const products = ref([])
   const isLoading = ref(false)
 
-  const totalAmount = computed(() => items.value.reduce((sum, item) => sum + (Number(item.price) * item.qty), 0))
+  const totalAmount = computed(() => {
+    return items.value.reduce((sum, item) => {
+      let currentPrice = 0
+      if (currency.value === 'UAH') currentPrice = Number(item.price_uah || item.price)
+      else if (currency.value === 'USD') currentPrice = Number(item.price_usd || 0)
+      else if (currency.value === 'EUR') currentPrice = Number(item.price_eur || 0)
+      return sum + (currentPrice * item.qty)
+    }, 0)
+  })
   const balanceDue = computed(() => Math.max(0, totalAmount.value - prepayAmount.value))
   const orderStatus = computed(() => {
     if (items.value.length === 0) return 'new'
@@ -94,6 +102,9 @@ export const useCartStore = defineStore('pos', () => {
         ...product, 
         title: product.name, // Призначаємо назву (name -> title)
         price: Number(product.sale_price), 
+        price_uah: Number(product.price_uah || product.sale_price),
+        price_usd: Number(product.price_usd || 0),
+        price_eur: Number(product.price_eur || 0),
         qty: 1 
       })
     }
@@ -114,17 +125,27 @@ export const useCartStore = defineStore('pos', () => {
 
   const clearCart = () => { items.value = []; prepayAmount.value = 0; commentTtn.value = '' }
 
-  const getOrderPayload = () => ({
-    items: items.value.map((i) => ({ product: i.id, quantity: i.qty })),
-    total_amount: totalAmount.value,
-    order_type: 'retail',
-    prepay_amount: prepayAmount.value,
-    balance_due: balanceDue.value,
-    status: 'draft',
-    cash_register: activeCashbox.value?.id || null,
-    currency: currency.value,
-    comment_ttn: commentTtn.value.trim()
-  })
+  const getOrderPayload = () => {
+    // Формуємо масив items зі зліпком ціни у вибраній валюті (для сумісності, якщо потрібно)
+    const payloadItems = items.value.map((i) => {
+      let currentPrice = Number(i.price_uah || i.price)
+      if (currency.value === 'USD') currentPrice = Number(i.price_usd || 0)
+      if (currency.value === 'EUR') currentPrice = Number(i.price_eur || 0)
+      return { product: i.id, quantity: i.qty, price: currentPrice }
+    })
+
+    return {
+      items: payloadItems,
+      total_amount: totalAmount.value,
+      order_type: 'retail',
+      prepay_amount: prepayAmount.value,
+      balance_due: balanceDue.value,
+      status: 'draft',
+      cash_register: activeCashbox.value?.id || null,
+      currency: currency.value,
+      comment_ttn: commentTtn.value.trim()
+    }
+  }
 
   const createCashbox = async (data) => { return (await api.post('/cash-registers/', data)).data }
   const deleteCashbox = async (id) => { await api.delete(`/cash-registers/${id}/`) }

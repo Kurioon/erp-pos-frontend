@@ -27,7 +27,7 @@
               aria-label="Збільшити кількість"
             >+</button>
           </div>
-          <span class="item-total">{{ formatCurrency(item.price * item.qty, cartStore.currency) }}</span>
+          <span class="item-total">{{ formatCurrency(getItemPrice(item) * item.qty, cartStore.currency) }}</span>
         </div>
       </transition-group>
     </div>
@@ -36,6 +36,15 @@
       <div class="summary-row total-row">
         <span class="summary-label">Разом</span>
         <strong>{{ formatCurrency(cartStore.totalAmount, cartStore.currency) }}</strong>
+      </div>
+
+      <div class="input-group">
+        <label class="group-label">Валюта оплати</label>
+        <div class="toggle-wrapper">
+          <button :class="['toggle-btn', { active: cartStore.currency === 'UAH' }]" @click="cartStore.currency = 'UAH'">₴ UAH</button>
+          <button :class="['toggle-btn', { active: cartStore.currency === 'USD' }]" @click="cartStore.currency = 'USD'">$ USD</button>
+          <button :class="['toggle-btn', { active: cartStore.currency === 'EUR' }]" @click="cartStore.currency = 'EUR'">€ EUR</button>
+        </div>
       </div>
 
       <div class="input-group">
@@ -61,7 +70,7 @@
       <transition name="expand">
         <div v-if="paymentType === 'partial'" class="partial-payment-section">
          <BaseInput
-            label="Сума передоплати (₴):"
+            :label="`Сума передоплати (${cartStore.currency}):`"
             type="text"
             inputmode="numeric"
             :model-value="cartStore.prepayAmount === 0 ? '' : String(cartStore.prepayAmount)"
@@ -134,6 +143,13 @@ const setPaymentType = (type) => {
   if (type === 'full') {
     cartStore.prepayAmount = 0
   }
+}
+
+const getItemPrice = (item) => {
+  if (cartStore.currency === 'UAH') return Number(item.price_uah || item.price)
+  if (cartStore.currency === 'USD') return Number(item.price_usd || 0)
+  if (cartStore.currency === 'EUR') return Number(item.price_eur || 0)
+  return Number(item.price)
 }
 
 const preventNonDigits = (event) => {

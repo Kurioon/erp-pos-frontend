@@ -20,8 +20,8 @@
           <span class="po-date">{{ formatDate(order.created_at || new Date()) }}</span>
         </div>
         <div class="po-amounts">
-          <div class="amt-row"><span>Загальна сума:</span> <strong>{{ formatCurrency(order.total_amount, 'UAH') }}</strong></div>
-          <div class="amt-row text-danger"><span>Борг (залишок):</span> <strong>{{ formatCurrency(order.balance_due, 'UAH') }}</strong></div>
+          <div class="amt-row"><span>Загальна сума:</span> <strong>{{ formatCurrency(order.total_amount, order.currency) }}</strong></div>
+          <div class="amt-row text-danger"><span>Борг (залишок):</span> <strong>{{ formatCurrency(order.balance_due, order.currency) }}</strong></div>
         </div>
 
         <BaseButton
@@ -30,7 +30,7 @@
           :disabled="financeStore.isSubmittingPrepay"
           @click.stop="handlePrepay(order)"
         >
-          Внести {{ formatCurrency(order.balance_due, 'UAH') }}
+          Внести {{ formatCurrency(order.balance_due, order.currency) }}
         </BaseButton>
       </div>
     </div>
@@ -77,7 +77,7 @@ const handlePrepay = async (order) => {
     return
   }
 
-  if (confirm(`Підтвердити внесення залишку ${formatCurrency(order.balance_due, 'UAH')} за замовлення #${order.id}?`)) {
+  if (confirm(`Підтвердити внесення залишку ${formatCurrency(order.balance_due, order.currency)} за замовлення #${order.id}?`)) {
     await financeStore.submitPrepay(order.id, order.balance_due, cashboxId)
   }
 }
