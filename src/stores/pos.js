@@ -39,11 +39,17 @@ export const useCartStore = defineStore('pos', () => {
     return allStocks
   }
 
-  const fetchProducts = async (page = 1) => {
+  const fetchProducts = async (page = 1, params = {}) => {
     isLoading.value = true
     try {
       const stocksData = await fetchAllStocks()
-      const productsResponse = await api.get(`/products/?page=${page}`)
+      
+      const queryParams = { page }
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== '' && v !== null && v !== undefined) queryParams[k] = v
+      })
+      
+      const productsResponse = await api.get('/products/', { params: queryParams })
       const fetchedProducts = productsResponse.data.results || []
 
       products.value = fetchedProducts.map((product) => {

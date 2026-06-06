@@ -173,7 +173,7 @@ const handleCheckout = async () => {
       ...cartStore.getOrderPayload(),
       prepay_amount: 0,
       balance_due: cartStore.totalAmount,
-      status: 'new',
+      status: 'draft',
       cash_register: cartStore.activeCashbox.id
     }
 

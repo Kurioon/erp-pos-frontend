@@ -5,13 +5,14 @@
       @close="isReturnModalOpen = false"
     />
     <div class="catalog-header">
-      <input
-        v-model="searchQuery"
-        type="text"
-        placeholder="Пошук або сканер штрих-коду..."
-        class="search-input"
-        aria-label="Пошук товарів"
-      >
+      <FilterBar
+        searchPlaceholder="Пошук (назва, артикул, штрихкод)..."
+        :filters="filterBarConfig"
+        :modelValue="filters.search"
+        @update:search="onSearchUpdate"
+        @update:filter="onFilterUpdate"
+        class="pos-filter"
+      />
       <button class="return-btn" @click="handleReturn">
         ↺ Повернення
       </button>
@@ -48,21 +49,58 @@
 
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useCartStore } from '@/stores/pos'
+import { useCategoriesStore } from '@/stores/categories'
 import { formatCurrency } from '@/utils/formatters'
 import ReturnModal from '@/components/pos/ReturnModal.vue'
+import FilterBar from '@/components/ui/FilterBar.vue'
 
 const cartStore = useCartStore()
-const searchQuery = ref('')
+const categoriesStore = useCategoriesStore()
+
 const isReturnModalOpen = ref(false)
 
+const filters = ref({
+  search: '',
+  category: ''
+})
+
+const categoryOptions = computed(() => {
+  return [
+    { value: '', label: 'Всі категорії' },
+    ...categoriesStore.categories.map(c => ({ value: c.id, label: c.name }))
+  ]
+})
+
+const filterBarConfig = computed(() => [
+  { key: 'category', label: 'Всі категорії', options: categoryOptions.value }
+])
+
+const onSearchUpdate = (val) => {
+  filters.value.search = val
+  fetchProducts()
+}
+
+const onFilterUpdate = ({ key, value }) => {
+  filters.value[key] = value
+  fetchProducts()
+}
+
+const fetchProducts = () => {
+  cartStore.fetchProducts(1, filters.value)
+}
+
+onMounted(() => {
+  if (categoriesStore.categories.length === 0) {
+    categoriesStore.fetchList()
+  }
+})
+
 const filteredProducts = computed(() => {
-  if (!searchQuery.value) return cartStore.products
-  return cartStore.products.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    (p.barcode && p.barcode.includes(searchQuery.value))
-  )
+  // Фільтрація тепер на бекенді, тому просто повертаємо товари зі стору
+  // Але якщо користувач ввів щось швидко, бекенд відпрацює
+  return cartStore.products
 })
 
 const handleAdd = (product) => {
@@ -91,19 +129,10 @@ const handleReturn = () => {
   flex-shrink: 0;
 }
 
-.search-input {
+.pos-filter {
   flex-grow: 1;
-  padding: 12px 16px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 1rem;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.search-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  margin-bottom: 0 !important;
+  padding: 8px 12px !important;
 }
 
 .return-btn {
