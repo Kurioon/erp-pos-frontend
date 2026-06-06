@@ -116,6 +116,15 @@
       </template>
     </BaseModal>
 
+    <ConfirmModal
+      :is-open="isConfirmSubmitOpen"
+      :title="editingCashboxId ? 'Збереження змін' : 'Створення каси'"
+      :message="editingCashboxId ? 'Ви впевнені, що хочете зберегти зміни для цієї каси?' : 'Ви впевнені, що хочете створити нову касу з цими даними?'"
+      confirmText="Підтвердити"
+      @close="isConfirmSubmitOpen = false"
+      @confirm="executeSubmitCashbox"
+    />
+
   </div>
 </template>
 
@@ -132,6 +141,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import IconRefresh from '@/components/icons/IconRefresh.vue'
 
 const cartStore = useCartStore()
@@ -178,6 +188,7 @@ const handleSaveRates = async () => {
 }
 
 const isCashboxModalOpen = ref(false)
+const isConfirmSubmitOpen = ref(false)
 const isSubmittingCashbox = ref(false)
 const editingCashboxId = ref(null)
 const cashboxFormData = ref({ name: '', warehouse: '' })
@@ -219,11 +230,10 @@ const closeCashboxModal = () => {
   isCashboxModalOpen.value = false
 }
 
-const submitCashbox = async () => {
+const submitCashbox = () => {
   if (!isFormValid.value) return
 
   const trimmedName = cashboxFormData.value.name.trim()
-
   const isDuplicate = cartStore.availableCashboxes.some(box =>
     box.name.toLowerCase() === trimmedName.toLowerCase() && box.id !== editingCashboxId.value
   )
@@ -233,23 +243,31 @@ const submitCashbox = async () => {
     return
   }
 
+  isConfirmSubmitOpen.value = true
+}
+
+const executeSubmitCashbox = async () => {
+  isConfirmSubmitOpen.value = false
   isSubmittingCashbox.value = true
   try {
     const payload = {
-      name: trimmedName,
+      name: cashboxFormData.value.name.trim(),
       warehouse: Number(cashboxFormData.value.warehouse)
     }
 
     if (editingCashboxId.value) {
       await cartStore.updateCashbox(editingCashboxId.value, payload)
+      window.dispatchEvent(new CustomEvent('app-success', { detail: { message: 'Касу успішно оновлено!', type: 'success' } }))
     } else {
       await cartStore.createCashbox(payload)
+      window.dispatchEvent(new CustomEvent('app-success', { detail: { message: 'Касу успішно створено!', type: 'success' } }))
     }
 
     closeCashboxModal()
     await cartStore.fetchCashboxes()
   } catch (error) {
     console.error('Помилка збереження каси:', error)
+    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Не вдалося зберегти касу', type: 'error' } }))
   } finally {
     isSubmittingCashbox.value = false
   }
@@ -261,8 +279,18 @@ const promptDeleteCashbox = (cashbox) => {
 
 const confirmDeleteCashbox = async () => {
   if (!cashboxToDelete.value) return
-  await cartStore.deleteCashbox(cashboxToDelete.value.id)
-  cashboxToDelete.value = null
+  
+  try {
+    await cartStore.deleteCashbox(cashboxToDelete.value.id)
+    window.dispatchEvent(new CustomEvent('app-success', { detail: { message: 'Касу успішно видалено!', type: 'success' } }))
+    await cartStore.fetchCashboxes()
+  } catch (error) {
+    console.error('Помилка видалення каси:', error)
+    const errorMsg = error.response?.data?.detail || error.response?.data?.error || 'Не вдалося видалити касу. Можливо, по ній є транзакції.'
+    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: errorMsg, type: 'error' } }))
+  } finally {
+    cashboxToDelete.value = null
+  }
 }
 
 onMounted(() => {

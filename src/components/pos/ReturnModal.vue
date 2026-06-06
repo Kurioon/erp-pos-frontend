@@ -29,6 +29,15 @@
       </div>
     </div>
   </BaseModal>
+
+  <ConfirmModal
+    :is-open="isConfirmOpen"
+    title="Підтвердження повернення"
+    :message="`Ви впевнені, що хочете повернути замовлення <strong>#${orderIdToReturn}</strong>? Ця дія призведе до повернення коштів з каси та товарів на склад.`"
+    confirmText="Повернути кошти"
+    @close="isConfirmOpen = false"
+    @confirm="executeReturn"
+  />
 </template>
 
 <script setup>
@@ -36,6 +45,7 @@ import { ref } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import api from '@/api/axios'
 import { useCartStore } from '@/stores/pos' 
 import { useWarehousesStore } from '@/stores/warehouses'
@@ -50,13 +60,14 @@ const cartStore = useCartStore()
 const warehousesStore = useWarehousesStore()
 const orderIdToReturn = ref('')
 const isLoading = ref(false)
+const isConfirmOpen = ref(false)
 
 const closeModal = () => {
   orderIdToReturn.value = ''
   emit('close')
 }
 
-const processReturn = async () => {
+const processReturn = () => {
   if (!orderIdToReturn.value) return
 
   if (!cartStore.activeCashbox) {
@@ -66,6 +77,11 @@ const processReturn = async () => {
     return
   }
 
+  isConfirmOpen.value = true
+}
+
+const executeReturn = async () => {
+  isConfirmOpen.value = false
   isLoading.value = true
   try {
     const payload = {
