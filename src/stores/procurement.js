@@ -17,6 +17,7 @@ export const useProcurementStore = defineStore('procurement', () => {
     try {
       const params = new URLSearchParams()
       params.append('order_type', 'purchase')
+      if (filters.search) params.append('search', filters.search)
       if (filters.status) params.append('status', filters.status)
       if (filters.ordering) params.append('ordering', filters.ordering)
 
