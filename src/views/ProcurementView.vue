@@ -63,7 +63,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useProcurementStore } from '@/stores/procurement'
 import { PURCHASE_STATUS_LABELS } from '@/constants/purchases'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseSelect from '@/components/ui/BaseSelect.vue'
 import FilterBar from '@/components/ui/FilterBar.vue'
 import PurchasesTable from '@/components/purchases/PurchasesTable.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
@@ -156,8 +155,7 @@ const handleSaveOrder = async (payload) => {
 }
 
 const openReceiveModal = (id) => {
-  // Компонент таблиці передає тільки ID, тому робимо об'єкт-заглушку для модалки
-  orderToReceive.value = { id } 
+  orderToReceive.value = { id }
   isReceiveModalOpen.value = true
 }
 
@@ -168,18 +166,17 @@ const closeReceiveModal = () => {
 
 const handleReceiveConfirm = async ({ orderId, warehouseId }) => {
   try {
-    // Робимо правильний запит на прийомку
     await api.post(`/orders/${orderId}/receive/`, { warehouse: warehouseId })
     closeReceiveModal()
 
-    // 1. Оновлюємо статус в поточній таблиці
-    applyFilters() 
-    
+    applyFilters()
 
-    // alert('Товари успішно прийняті на склад!') // Можеш розкоментувати за бажанням
+
   } catch (error) {
     console.error('Помилка прийомки:', error)
-    alert('Помилка прийомки. Перевірте консоль.')
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Помилка прийомки. Перевірте консоль.', type: 'error' }
+    }))
   }
 }
 </script>

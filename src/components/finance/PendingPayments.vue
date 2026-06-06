@@ -40,6 +40,15 @@
       :order="selectedOrder"
       @close="isDetailsOpen = false"
     />
+
+    <ConfirmModal
+      :is-open="isConfirmOpen"
+      title="Підтвердження оплати"
+      :message="confirmMessage"
+      confirmText="Внести оплату"
+      @close="isConfirmOpen = false"
+      @confirm="executePrepay"
+    />
   </div>
 </template>
 
@@ -49,6 +58,7 @@ import { useFinanceStore } from '@/stores/finance'
 import { useCartStore } from '@/stores/pos'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import PendingOrderDetailsModal from '@/components/finance/PendingOrderDetailsModal.vue'
 
 const financeStore = useFinanceStore()
@@ -56,6 +66,11 @@ const cartStore = useCartStore()
 
 const isDetailsOpen = ref(false)
 const selectedOrder = ref(null)
+
+const isConfirmOpen = ref(false)
+const confirmMessage = ref('')
+const orderToPay = ref(null)
+const cashboxToUse = ref(null)
 
 onMounted(() => {
   financeStore.fetchPartialOrders()
@@ -77,9 +92,18 @@ const handlePrepay = async (order) => {
     return
   }
 
-  if (confirm(`Підтвердити внесення залишку ${formatCurrency(order.balance_due, order.currency)} за замовлення #${order.id}?`)) {
-    await financeStore.submitPrepay(order.id, order.balance_due, cashboxId)
-  }
+  orderToPay.value = order
+  cashboxToUse.value = cashboxId
+  confirmMessage.value = `Ви збираєтесь внести залишок <strong>${formatCurrency(order.balance_due, order.currency)}</strong> за замовлення <strong>#${order.id}</strong>.<br><br>Підтвердити операцію?`
+  isConfirmOpen.value = true
+}
+
+const executePrepay = async () => {
+  if (!orderToPay.value || !cashboxToUse.value) return
+  isConfirmOpen.value = false // close immediately to not block UI during request
+  await financeStore.submitPrepay(orderToPay.value.id, orderToPay.value.balance_due, cashboxToUse.value)
+  orderToPay.value = null
+  cashboxToUse.value = null
 }
 </script>
 
