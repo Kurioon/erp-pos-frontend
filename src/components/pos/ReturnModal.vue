@@ -47,8 +47,9 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import api from '@/api/axios'
-import { useCartStore } from '@/stores/pos' 
+import { useCartStore } from '@/stores/pos'
 import { useWarehousesStore } from '@/stores/warehouses'
+import { useFinanceStore } from '@/stores/finance'
 
 defineProps({
   isOpen: Boolean
@@ -58,6 +59,7 @@ const emit = defineEmits(['close'])
 
 const cartStore = useCartStore()
 const warehousesStore = useWarehousesStore()
+const financeStore = useFinanceStore()
 const orderIdToReturn = ref('')
 const isLoading = ref(false)
 const isConfirmOpen = ref(false)
@@ -97,6 +99,12 @@ const executeReturn = async () => {
 
     await cartStore.fetchProducts()
     await warehousesStore.fetchWarehouses()
+
+    const todayObj = new Date()
+    const todayStr = todayObj.getFullYear() + '-' +
+      String(todayObj.getMonth() + 1).padStart(2, '0') + '-' +
+      String(todayObj.getDate()).padStart(2, '0')
+    await financeStore.fetchTransactions(1, { date: todayStr })
 
     closeModal()
   } catch (error) {
