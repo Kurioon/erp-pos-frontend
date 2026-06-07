@@ -172,7 +172,7 @@
                 <tr v-else-if="purchases.length === 0">
                   <td colspan="4" class="text-center py-2 empty-text">Немає закупівель</td>
                 </tr>
-                <tr v-else v-for="purchase in purchases" :key="purchase.id">
+                <tr v-else v-for="purchase in purchases" :key="purchase.id" @click="openPurchaseView(purchase)" class="clickable-row">
                   <td>{{ purchase.id }}</td>
                   <td>{{ formatDate(purchase.created_at) }}</td>
                   <td>{{ formatCurrency(purchase.total_amount) }}</td>
@@ -200,6 +200,7 @@
     :is-open="isOrderModalOpen"
     :order="selectedOrder"
     @close="isOrderModalOpen = false"
+    @pay="handleOrderPay"
   />
 
   <RepairDetailsModal
@@ -207,6 +208,34 @@
     :is-open="isRepairModalOpen"
     :job="selectedRepair"
     @close="isRepairModalOpen = false"
+    @pay="handleRepairPay"
+    @refresh="loadData"
+  />
+
+  <PurchaseFormModal
+    v-if="isPurchaseViewOpen"
+    :is-open="isPurchaseViewOpen"
+    :edit-mode="true"
+    :order-data="selectedPurchase"
+    @close="isPurchaseViewOpen = false"
+    @save="handlePurchaseUpdate"
+  />
+
+  <ConfirmModal
+    :is-open="isConfirmOpen"
+    title="Оплатити борг"
+    :message="confirmMessage"
+    confirmText="Сплатити"
+    @close="isConfirmOpen = false"
+    @confirm="executeOrderPay"
+  />
+
+  <RepairPaymentModal
+    v-if="isRepairPaymentOpen"
+    :is-open="isRepairPaymentOpen"
+    :job-data="selectedRepair"
+    @close="isRepairPaymentOpen = false"
+    @paid="handleRepairPaid"
   />
 </template>
 
@@ -219,7 +248,11 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
 import PendingOrderDetailsModal from '@/components/finance/PendingOrderDetailsModal.vue'
 import RepairDetailsModal from '@/components/repairs/RepairDetailsModal.vue'
+import RepairPaymentModal from '@/components/repairs/RepairPaymentModal.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import api from '@/api/axios'
+import { useFinanceStore } from '@/stores/finance'
+import { useCartStore } from '@/stores/pos'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -231,6 +264,8 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'edit', 'delete', 'new-purchase'])
 const store = useCounterpartiesStore()
+const financeStore = useFinanceStore()
+const cartStore = useCartStore()
 
 const isEditingNotes = ref(false)
 const editNotes = ref('')
@@ -252,6 +287,14 @@ const selectedOrder = ref(null)
 const isRepairModalOpen = ref(false)
 const selectedRepair = ref(null)
 
+const isPurchaseViewOpen = ref(false)
+const selectedPurchase = ref(null)
+
+const isConfirmOpen = ref(false)
+const confirmMessage = ref('')
+const orderToPay = ref(null)
+const isRepairPaymentOpen = ref(false)
+
 const openPurchaseModal = () => {
   isPurchaseModalOpen.value = true
 }
@@ -264,6 +307,54 @@ const openOrderDetails = (order) => {
 const openRepairDetails = (job) => {
   selectedRepair.value = job
   isRepairModalOpen.value = true
+}
+
+const openPurchaseView = (purchase) => {
+  selectedPurchase.value = purchase
+  isPurchaseViewOpen.value = true
+}
+
+const handleOrderPay = async (order) => {
+  isOrderModalOpen.value = false
+  if (cartStore.availableCashboxes.length === 0) {
+    await cartStore.fetchCashboxes()
+  }
+  const cashboxId = order.cash_register || cartStore.availableCashboxes[0]?.id
+  if (!cashboxId) {
+    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Не обрано касу для оплати', type: 'error' } }))
+    return
+  }
+  orderToPay.value = { order, cashboxId }
+  confirmMessage.value = `Ви підтверджуєте прийом оплати <strong>${formatCurrency(order.balance_due, order.currency)}</strong> за замовленням <strong>#${order.id}</strong>?`
+  isConfirmOpen.value = true
+}
+
+const executeOrderPay = async () => {
+  if (!orderToPay.value) return
+  isConfirmOpen.value = false
+  try {
+    await financeStore.submitPrepay(orderToPay.value.order.id, orderToPay.value.order.balance_due, orderToPay.value.cashboxId)
+    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Борг успішно оплачено', type: 'success' } }))
+    await loadData()
+  } catch (error) {
+    console.error('Помилка оплати:', error)
+  }
+}
+
+const handleRepairPay = (job) => {
+  isRepairModalOpen.value = false
+  selectedRepair.value = job
+  isRepairPaymentOpen.value = true
+}
+
+const handleRepairPaid = () => {
+  window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Оплата за ремонт пройшла успішно', type: 'success' } }))
+  loadData()
+}
+
+const handlePurchaseUpdate = async (payload) => {
+  // We can just close the modal, if saving edits is supported by ProcurementView we could dispatch it
+  isPurchaseViewOpen.value = false
 }
 
 const handlePurchaseSubmit = async (payload) => {

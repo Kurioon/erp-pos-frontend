@@ -18,8 +18,11 @@
         <b class="amt-positive">{{ formatCurrency(Number(order.total_amount) - Number(order.balance_due), order.currency) }}</b>
       </div>
       <div class="detail-row highlight-row">
-        <span>Залишок до оплати (Борг):</span>
+        <span>Залишок до сплати (Борг):</span>
         <b class="amt-negative">{{ formatCurrency(order.balance_due, order.currency) }}</b>
+      </div>
+      <div class="modal-actions" v-if="order.balance_due > 0">
+        <BaseButton variant="primary" @click="$emit('pay', order)" style="width: 100%; margin-top: 10px;">Оплатити борг</BaseButton>
       </div>
     </div>
   </BaseModal>
@@ -27,13 +30,14 @@
 
 <script setup>
 import BaseModal from '@/components/ui/BaseModal.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 
 defineProps({
   isOpen: Boolean,
   order: Object
 })
-defineEmits(['close'])
+defineEmits(['close', 'pay'])
 </script>
 
 <style scoped>
