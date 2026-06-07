@@ -51,6 +51,7 @@ export const useRepairsStore = defineStore('repairs', () => {
         formData.append('price', jobData.price)
       }
       if (jobData.device) formData.append('device', jobData.device)
+      if (jobData.counterparty) formData.append('counterparty', jobData.counterparty)
 
       if (jobData.comment) formData.append('comment', jobData.comment)
       if (jobData.storage_cell) formData.append('storage_cell', jobData.storage_cell)
@@ -106,6 +107,7 @@ export const useRepairsStore = defineStore('repairs', () => {
         formData.append('price', jobData.price)
       }
       if (jobData.device) formData.append('device', jobData.device)
+      if (jobData.counterparty) formData.append('counterparty', jobData.counterparty)
 
       if (jobData.comment) formData.append('comment', jobData.comment)
       if (photoFile) formData.append('photo', photoFile)

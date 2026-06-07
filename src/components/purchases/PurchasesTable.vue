@@ -15,7 +15,12 @@
         <template v-for="order in props.purchases" :key="order.id">
           <tr v-if="order" class="main-row" :class="{ 'is-expanded': expandedRowId === order.id }" @click="toggleRow(order.id)">
             <td class="text-muted font-medium">{{ order.id }}</td>
-            <td class="font-bold text-dark">{{ order.supplier || 'Не вказано' }}</td>
+            <td class="font-bold text-dark">
+              <a v-if="order.counterparty" href="#" @click.stop="openDrawer(order.counterparty)" class="text-link">
+                {{ order.supplier || 'Не вказано' }}
+              </a>
+              <span v-else>{{ order.supplier || 'Не вказано' }}</span>
+            </td>
             <td class="text-muted">{{ order.date ? formatDate(order.date) : '—' }}</td>
             <td>
               <span class="status-badge" :class="resolveStatusClass(order.status)">
@@ -100,6 +105,7 @@
 import { ref, computed } from 'vue'
 import { PURCHASE_STATUS_LABELS } from '@/constants/purchases'
 import { formatCurrency, formatDate } from '@/utils/formatters'
+import { useCounterpartiesStore } from '@/stores/counterparties'
 
 const props = defineProps({
   purchases: {
@@ -108,8 +114,13 @@ const props = defineProps({
   }
 })
 
+const counterpartiesStore = useCounterpartiesStore()
 const emit = defineEmits(['edit', 'approve'])
 const expandedRowId = ref(null)
+
+const openDrawer = (id) => {
+  counterpartiesStore.openGlobalDrawer(id)
+}
 
 // Кешуємо обчислену суму для кожного замовлення
 const orderTotalsCache = computed(() => {

@@ -181,10 +181,8 @@ const handleReturn = () => {
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 16px;
   align-content: start;
-  scrollbar-width: none;
   padding: 6px 6px 32px 6px;
 }
-.products-grid::-webkit-scrollbar { display: none; }
 
 .product-card {
   border: 1px solid #e2e8f0;
