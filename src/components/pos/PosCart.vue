@@ -536,7 +536,7 @@ const handleEnterPress = () => {
 .toggle-btn.active { background: #ffffff; color: #2563eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 .toggle-btn:hover:not(.active) { color: #0f172a; }
 
-.partial-payment-section { overflow: hidden; background: #ffffff; }
+.partial-payment-section { background: #ffffff; }
 
 .expand-enter-active, .expand-leave-active { transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; margin-top: 0; transform: translateY(-5px); }

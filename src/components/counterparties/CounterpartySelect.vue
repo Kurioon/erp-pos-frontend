@@ -43,9 +43,7 @@ const isFormOpen = ref(false)
 
 const loadData = (search = '') => {
   const filters = { search }
-  if (props.roleFilter) {
-    filters.role = props.roleFilter
-  }
+  // Removed strict role filter from backend request
   store.fetchList(1, filters)
 }
 
@@ -56,9 +54,13 @@ onMounted(() => {
 })
 
 const counterpartyOptions = computed(() => {
-  let list = store.counterparties
+  let list = [...store.counterparties]
   if (props.roleFilter) {
-    list = list.filter(c => c.role === props.roleFilter || c.role === 'both')
+    list.sort((a, b) => {
+      const aMatches = (a.role === props.roleFilter || a.role === 'both') ? 1 : 0
+      const bMatches = (b.role === props.roleFilter || b.role === 'both') ? 1 : 0
+      return bMatches - aMatches // Match preferred role first
+    })
   }
   return list.map(c => ({
     value: c.id,
@@ -78,10 +80,12 @@ const openCreateModal = () => {
   isFormOpen.value = true
 }
 
-const handleSaved = async () => {
+const handleSaved = async (createdObj) => {
   await loadData()
-  if (store.counterparties.length > 0) {
-    // Select the newly created one (it should be first or we can just emit it if the API returns it)
+  if (createdObj && createdObj.id) {
+    emit('update:modelValue', createdObj.id)
+  } else if (store.counterparties.length > 0) {
+    // Fallback if createdObj isn't available
     const newest = store.counterparties[0]
     emit('update:modelValue', newest.id)
   }

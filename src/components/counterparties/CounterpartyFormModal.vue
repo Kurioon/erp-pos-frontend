@@ -129,12 +129,13 @@ const handleSubmit = async () => {
   isSubmitting.value = true
   try {
     const payload = { ...form.value }
+    let result
     if (isEdit.value) {
-      await store.update(props.counterparty.id, payload)
+      result = await store.update(props.counterparty.id, payload)
     } else {
-      await store.create(payload)
+      result = await store.create(payload)
     }
-    emit('saved')
+    emit('saved', result)
     close()
   } catch (error) {
     console.error('Submit error:', error)

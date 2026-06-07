@@ -5,10 +5,15 @@
       <div class="form-row-top">
         <div class="form-group">
           <CounterpartySelect
+            v-if="!fixedSupplierId"
             v-model="localOrder.counterparty"
             label="Контрагент (Постачальник)"
             role-filter="supplier"
           />
+          <div v-else class="supplier-locked">
+            <label class="locked-label">Постачальник (зафіксовано)</label>
+            <div class="locked-value">Обраний постачальник</div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -113,7 +118,8 @@ import { useCategoriesStore } from '@/stores/categories'
 const props = defineProps({
   isOpen: Boolean,
   editMode: Boolean,
-  orderData: Object
+  orderData: Object,
+  fixedSupplierId: { type: Number, default: null }
 })
 
 const emit = defineEmits(['close', 'save'])
@@ -170,7 +176,7 @@ const onProductCreated = async (newProduct) => {
 }
 
 const localOrder = ref({
-  counterparty: '',
+  counterparty: props.fixedSupplierId || '',
   date: new Date().toISOString().split('T')[0],
   items: [{ product_id: '', qty: 1, price: 0 }]
 })
@@ -186,7 +192,7 @@ watch(() => props.orderData, (newData) => {
     }
     
     localOrder.value = {
-      counterparty: newData.counterparty || '',
+      counterparty: props.fixedSupplierId || newData.counterparty || '',
       date: dateStr,
       items: newData.items && Array.isArray(newData.items) && newData.items.length > 0
         ? newData.items.map(item => ({
@@ -198,7 +204,7 @@ watch(() => props.orderData, (newData) => {
     }
   } else if (!props.editMode) {
     localOrder.value = {
-      counterparty: '',
+      counterparty: props.fixedSupplierId || '',
       date: new Date().toISOString().split('T')[0],
       items: [{ product_id: '', qty: 1, price: 0 }]
     }
@@ -251,12 +257,11 @@ const submitConfirm = () => {
   const payload = {
     total_amount: formTotalSum.value,
     items: validItems.value.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price })),
-    status: 'pending' // TODO: or 'received' depending on logic, for now draft is enough, emit 'save-confirm' if supported. Wait, ProcurementView just handles 'save' as draft.
+    status: 'pending' 
   }
   if (localOrder.value.counterparty) {
     payload.counterparty = localOrder.value.counterparty
   }
-  // If ProcurementView doesn't handle save-confirm yet, we just emit save for now.
   payload.auto_confirm = true
   emit('save', payload)
 }
@@ -282,10 +287,6 @@ const submitConfirm = () => {
 }
 
 .form-label { font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block; }
-.supplier-label-container { display: flex; justify-content: space-between; align-items: center; }
-.inline-add-btn { background: transparent; border: none; color: #2563eb; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 0; }
-.inline-supplier-input-block { display: flex; gap: 8px; align-items: flex-end; }
-.section-subtitle { font-size: 0.75rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; margin-bottom: 12px; }
 
 .items-blank-list {
   display: flex;
@@ -314,12 +315,32 @@ const submitConfirm = () => {
 .fg-qty :deep(input), .fg-price :deep(input) {
   min-width: 0 !important;
   width: 100% !important;
-  padding: 8px !important; /* Робимо текст трохи вільнішим всередині інпута */
+  padding: 8px !important;
 }
 
 .remove-item-btn { background: #fef2f2; border: 1px solid #fca5a5; color: #ef4444; width: 32px; height: 32px; border-radius: 6px; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s; padding: 0; margin: 0; }
 .remove-item-btn:hover:not(:disabled) { background: #fee2e2; }
 .remove-item-btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: #f87171; }
+
+.supplier-locked {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.locked-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+.locked-value {
+  padding: 10px 16px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  font-weight: 500;
+  cursor: not-allowed;
+}
 
 .add-row-btn { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px dashed #cbd5e1; color: #2563eb; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 8px; width: 100%; }
 .add-row-btn:hover { background-color: #eff6ff; border-color: #2563eb; }
