@@ -78,10 +78,12 @@ const openCreateModal = () => {
   isFormOpen.value = true
 }
 
-const handleSaved = async () => {
+const handleSaved = async (createdObj) => {
   await loadData()
-  if (store.counterparties.length > 0) {
-    // Select the newly created one (it should be first or we can just emit it if the API returns it)
+  if (createdObj && createdObj.id) {
+    emit('update:modelValue', createdObj.id)
+  } else if (store.counterparties.length > 0) {
+    // Fallback if createdObj isn't available
     const newest = store.counterparties[0]
     emit('update:modelValue', newest.id)
   }
