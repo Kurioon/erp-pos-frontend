@@ -16,31 +16,59 @@
           <div class="cart-item">
             <div class="item-main-info">
               <span class="item-title">{{ item.title }}</span>
-              <div class="item-discount-controls">
-                <select v-model="item.discount_type" class="discount-type-select">
-                  <option value="amount">₴</option>
-                  <option value="percent">%</option>
-                </select>
-                <input type="number" v-model.number="item.discount_value" min="0" class="discount-val-input" placeholder="0" />
+            </div>
+
+            <div class="item-bottom-row">
+              <div class="item-controls">
+                <button
+                  @click="cartStore.updateItemQuantity(item.id, item.qty - 1)"
+                  aria-label="Зменшити кількість"
+                >−</button>
+                <span class="qty">{{ item.qty }}</span>
+                <button
+                  @click="cartStore.updateItemQuantity(item.id, item.qty + 1)"
+                  :disabled="item.qty >= item.stock"
+                  aria-label="Збільшити кількість"
+                >+</button>
+              </div>
+              
+              <div class="item-totals">
+                <span class="item-base-price" v-if="item.discount_value > 0">{{ formatCurrency(getItemPrice(item) * item.qty, cartStore.currency) }}</span>
+                <span class="item-total">{{ formatCurrency(getItemFinalPrice(item) * item.qty, cartStore.currency) }}</span>
               </div>
             </div>
 
-            <div class="item-controls">
-              <button
-                @click="cartStore.updateItemQuantity(item.id, item.qty - 1)"
-                aria-label="Зменшити кількість"
-              >−</button>
-              <span class="qty">{{ item.qty }}</span>
-              <button
-                @click="cartStore.updateItemQuantity(item.id, item.qty + 1)"
-                :disabled="item.qty >= item.stock"
-                aria-label="Збільшити кількість"
-              >+</button>
-            </div>
-            
-            <div class="item-totals">
-              <span class="item-base-price" v-if="item.discount_value > 0">{{ formatCurrency(getItemPrice(item) * item.qty, cartStore.currency) }}</span>
-              <span class="item-total">{{ formatCurrency(getItemFinalPrice(item) * item.qty, cartStore.currency) }}</span>
+            <div class="item-discount-section">
+              <button 
+                class="discount-toggle-btn" 
+                @click="toggleDiscount(item.id)"
+                :class="{ 'has-discount': item.discount_value > 0 }"
+              >
+                <span class="discount-toggle-text">
+                  Знижка на товар <span v-if="item.discount_value > 0">({{ item.discount_value }}{{ item.discount_type === 'percent' ? '%' : currencySymbol }})</span>
+                </span>
+                <span class="discount-toggle-icon">{{ isDiscountExpanded(item.id) ? '▴' : '▾' }}</span>
+              </button>
+
+              <transition name="discount-expand">
+                <div class="item-discount-controls" v-if="isDiscountExpanded(item.id)">
+                  <BaseSelect
+                    v-model="item.discount_type"
+                    :options="discountOptions"
+                    class="discount-select-compact"
+                  />
+                  <BaseInput
+                    label=""
+                    type="number"
+                    :model-value="item.discount_value"
+                    @update:model-value="val => handleDiscountChange(item, val)"
+                    @keydown="preventNegativeInput"
+                    min="0"
+                    placeholder="0"
+                    class="discount-input-compact"
+                  />
+                </div>
+              </transition>
             </div>
           </div>
         </div>
@@ -51,11 +79,21 @@
         <div class="order-discount-section">
           <label class="group-label">Знижка на чек</label>
           <div class="order-discount-controls">
-            <select v-model="cartStore.cartDiscountType" class="discount-type-select">
-              <option value="amount">₴</option>
-              <option value="percent">%</option>
-            </select>
-            <input type="number" v-model.number="cartStore.cartDiscountValue" min="0" class="discount-val-input" placeholder="Сума знижки..." />
+            <BaseSelect
+              v-model="cartStore.cartDiscountType"
+              :options="discountOptions"
+              class="discount-select-compact"
+            />
+            <BaseInput
+              label=""
+              type="number"
+              :model-value="cartStore.cartDiscountValue"
+              @update:model-value="handleCartDiscountChange"
+              @keydown="preventNegativeInput"
+              min="0"
+              placeholder="Сума знижки..."
+              class="discount-input-compact"
+            />
           </div>
         </div>
 
@@ -164,6 +202,7 @@ import ReceiptModal from '@/components/pos/ReceiptModal.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
 import IconReceipt from '@/components/icons/IconReceipt.vue'
 
 const cartStore = useCartStore()
@@ -176,11 +215,48 @@ const lastCompletedOrder = ref(null)
 const isConfirmOpen = ref(false)
 const confirmMessage = ref('')
 
+const currencySymbol = computed(() => {
+  if (cartStore.currency === 'USD') return '$'
+  if (cartStore.currency === 'EUR') return '€'
+  return '₴'
+})
+
+const discountOptions = computed(() => [
+  { value: 'amount', label: currencySymbol.value },
+  { value: 'percent', label: '%' }
+])
+
 const setPaymentType = (type) => {
   paymentType.value = type
   if (type === 'full') {
     cartStore.prepayAmount = 0
   }
+}
+
+const expandedDiscounts = ref(new Set())
+
+const toggleDiscount = (id) => {
+  const newSet = new Set(expandedDiscounts.value)
+  if (newSet.has(id)) {
+    newSet.delete(id)
+  } else {
+    newSet.add(id)
+  }
+  expandedDiscounts.value = newSet
+}
+
+const isDiscountExpanded = (id) => expandedDiscounts.value.has(id)
+
+const handleDiscountChange = (item, val) => {
+  let num = Number(val)
+  if (num < 0 || isNaN(num)) num = 0
+  item.discount_value = num
+}
+
+const handleCartDiscountChange = (val) => {
+  let num = Number(val)
+  if (num < 0 || isNaN(num)) num = 0
+  cartStore.cartDiscountValue = num
 }
 
 const getItemPrice = (item) => {
@@ -207,6 +283,12 @@ const preventNonDigits = (event) => {
     return
   }
   if (!/^\d$/.test(event.key)) {
+    event.preventDefault()
+  }
+}
+
+const preventNegativeInput = (event) => {
+  if (event.key === '-' || event.key === 'e' || event.key === 'E') {
     event.preventDefault()
   }
 }
@@ -375,15 +457,30 @@ const handleEnterPress = () => {
 .cart-list-wrapper { padding-top: 12px; padding-bottom: 24px; position: relative; }
 
 .cart-item {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   padding: 16px 0;
   border-bottom: 1px dashed #e2e8f0;
   background: #ffffff;
 }
 .cart-item:last-child { border-bottom: none; }
+
+.item-main-info {
+  display: flex;
+  flex-direction: column;
+}
+.item-discount-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.item-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
 
 .item-title { font-size: 0.95rem; font-weight: 600; color: #334155; line-height: 1.4; }
 
@@ -395,7 +492,9 @@ const handleEnterPress = () => {
 .item-controls button:disabled { background: transparent; color: #cbd5e1; cursor: not-allowed; box-shadow: none; }
 
 .qty { font-weight: 700; min-width: 24px; font-size: 0.95rem; text-align: center; color: #0f172a; }
-.item-total { font-weight: 700; color: #0f172a; min-width: 75px; font-size: 1rem; text-align: right; letter-spacing: -0.01em; }
+.item-totals { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.item-total { font-weight: 700; color: #0f172a; font-size: 1.05rem; text-align: right; letter-spacing: -0.01em; }
+.item-base-price { font-size: 0.85rem; color: #94a3b8; text-decoration: line-through; }
 
 .list-enter-active, .list-leave-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .list-enter-from { opacity: 0; transform: translateX(20px) scale(0.98); }
@@ -403,8 +502,8 @@ const handleEnterPress = () => {
 .list-move { transition: transform 0.3s ease; }
 
 .summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.summary-label { color: #64748b; font-size: 0.95rem; font-weight: 500; }
-.total-row strong { font-size: 1.45rem; color: #0f172a; letter-spacing: -0.02em; }
+.summary-label { color: #64748b; font-size: 1.1rem; font-weight: 500; }
+.total-row strong { font-size: 1.6rem; color: #0f172a; letter-spacing: -0.02em; }
 
 .debt-row { color: #ef4444; font-size: 1.1rem; padding-top: 16px; border-top: 1px dashed #e2e8f0; margin-top: 16px; margin-bottom: 8px; }
 .debt-row .summary-label { color: #ef4444; }
@@ -428,6 +527,21 @@ const handleEnterPress = () => {
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; margin-top: 0; transform: translateY(-5px); }
 .expand-enter-to, .expand-leave-from { opacity: 1; max-height: 300px; margin-top: 20px; transform: translateY(0); }
 
+.discount-expand-enter-active, .discount-expand-leave-active { 
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  overflow: hidden;
+}
+.discount-expand-enter-from, .discount-expand-leave-to { 
+  opacity: 0; 
+  max-height: 0; 
+  transform: translateY(-4px); 
+}
+.discount-expand-enter-to, .discount-expand-leave-from { 
+  opacity: 1; 
+  max-height: 50px; 
+  transform: translateY(0); 
+}
+
 .mb-compact { margin-bottom: 12px; }
 .mt-1 { margin-top: 8px; }
 
@@ -444,5 +558,63 @@ const handleEnterPress = () => {
   .checkout-panel { padding: 20px; }
   .toggle-btn { font-size: 0.85rem; padding: 8px 0; }
   .pay-btn { padding: 14px; }
+}
+
+.item-discount-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.order-discount-section {
+  margin-bottom: 24px;
+}
+.order-discount-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.discount-select-compact {
+  width: 75px;
+  flex-shrink: 0;
+}
+.discount-input-compact {
+  flex: 1;
+  min-width: 0;
+}
+
+.discount-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 2px;
+  transition: color 0.2s;
+}
+.discount-toggle-btn:hover {
+  color: #2563eb;
+}
+.discount-toggle-btn.has-discount {
+  color: #059669; /* Green for active discount */
+  font-weight: 600;
+}
+
+/* Force exact same height for both inputs */
+:deep(.discount-select-compact .custom-select-wrapper) {
+  height: 38px;
+}
+:deep(.discount-select-compact .select-trigger) {
+  min-height: 38px;
+  height: 38px;
+  padding: 0 10px;
+}
+:deep(.discount-input-compact .base-input) {
+  height: 38px;
+  padding: 0 10px;
 }
 </style>

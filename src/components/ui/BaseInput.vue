@@ -1,6 +1,6 @@
 <template>
   <div class="base-input-group">
-    <label :for="uuid" class="base-input-label">{{ label }}</label>
+    <label v-if="label" :for="uuid" class="base-input-label">{{ label }}</label>
 
     <input
       :id="uuid"
