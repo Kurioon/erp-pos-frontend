@@ -98,7 +98,7 @@
                   <td>{{ formatDate(order.created_at) }}</td>
                   <td>{{ formatCurrency(order.total_amount) }}</td>
                   <td :class="{'text-danger font-medium': order.balance_due > 0}">{{ formatCurrency(order.balance_due || 0) }}</td>
-                  <td><BaseStatusBadge :status="order.status === 'paid' ? 'success' : order.status === 'partial' ? 'warning' : 'default'" :text="order.status" /></td>
+                  <td><BaseStatusBadge :status="order.status === 'paid' ? 'success' : order.status === 'partial' ? 'warning' : 'default'" :text="getOrderStatusLabel(order.status)" /></td>
                 </tr>
               </tbody>
             </table>
@@ -127,7 +127,7 @@
                 <tr v-else v-for="job in serviceJobs" :key="job.id" @click="openRepairDetails(job)" class="clickable-row">
                   <td>{{ job.id }}</td>
                   <td>{{ job.device_name }}</td>
-                  <td><BaseStatusBadge status="info" :text="job.status" /></td>
+                  <td><BaseStatusBadge status="info" :text="getJobStatusLabel(job.status)" /></td>
                   <td>{{ formatCurrency(job.price) }}</td>
                 </tr>
               </tbody>
@@ -176,7 +176,7 @@
                   <td>{{ purchase.id }}</td>
                   <td>{{ formatDate(purchase.created_at) }}</td>
                   <td>{{ formatCurrency(purchase.total_amount) }}</td>
-                  <td><BaseStatusBadge status="default" :text="purchase.status" /></td>
+                  <td><BaseStatusBadge status="default" :text="getOrderStatusLabel(purchase.status)" /></td>
                 </tr>
               </tbody>
             </table>
@@ -451,9 +451,29 @@ const getRoleLabel = (role) => {
   switch (role) {
     case 'buyer': return 'Покупець'
     case 'supplier': return 'Постачальник'
-    case 'both': return 'Обидва'
-    default: return 'Невідомо'
+    case 'both': return 'Універсальний'
+    default: return role
   }
+}
+
+const getOrderStatusLabel = (status) => {
+  const map = {
+    draft: 'Чернетка',
+    partial: 'Частково оплачено',
+    paid: 'Оплачено',
+    returned: 'Повернено',
+    cancelled: 'Скасовано'
+  }
+  return map[status] || status
+}
+
+const getJobStatusLabel = (status) => {
+  const map = {
+    in_progress: 'В роботі',
+    completed: 'Готово',
+    cancelled: 'Скасовано'
+  }
+  return map[status] || status
 }
 </script>
 

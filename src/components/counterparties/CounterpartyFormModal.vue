@@ -126,6 +126,14 @@ const close = () => {
 }
 
 const handleSubmit = async () => {
+  const phoneRegex = /^\+380\d{9}$/
+  if (!phoneRegex.test(form.value.phone)) {
+    window.dispatchEvent(new CustomEvent('api-error', { 
+      detail: { message: 'Неправильний формат телефону. Введіть номер у форматі +380XXXXXXXXX', type: 'error' } 
+    }))
+    return
+  }
+
   isSubmitting.value = true
   try {
     const payload = { ...form.value }
