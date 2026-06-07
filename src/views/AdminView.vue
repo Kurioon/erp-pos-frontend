@@ -49,7 +49,7 @@
                   type="checkbox" 
                   :checked="user.is_active" 
                   @change="toggleUserStatus(user)"
-                  :disabled="isUpdating === user.id"
+                  :disabled="isUpdating === user.id || user.id === authStore.user?.id"
                 >
                 <span class="slider round"></span>
               </label>
@@ -60,7 +60,7 @@
                 v-model="user.role"
                 :options="roleOptions"
                 @change="updateUserRole(user)"
-                :disabled="isUpdating === user.id"
+                :disabled="isUpdating === user.id || user.id === authStore.user?.id"
                 class="role-select"
               />
             </td>
@@ -80,12 +80,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '@/api/axios'
+import { useAuthStore } from '@/stores/auth'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLoader from '@/components/ui/BaseLoader.vue'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import UserFormModal from '@/components/admin/UserFormModal.vue'
 
+const authStore = useAuthStore()
 const users = ref([])
 const isLoading = ref(false)
 const isUpdating = ref(null)
