@@ -99,6 +99,18 @@ const changeStatus = async (newStatus) => {
   isUpdating.value = true
   try {
     await repairsStore.updateJobStatus(props.job.id, newStatus)
+  } catch (error) {
+    const data = error.response?.data
+    let msg = 'Дію відхилено. Перевірте статус оплати або інші умови.'
+    if (data && typeof data === 'object') {
+      if (data.error) msg = data.error
+      else if (data.detail) msg = data.detail
+    }
+    window.dispatchEvent(
+      new CustomEvent('api-error', {
+        detail: { message: msg, type: 'error' },
+      }),
+    )
   } finally {
     isUpdating.value = false
   }
@@ -137,5 +149,29 @@ const openPayment = () => {
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 .storage-badge { background-color: #eff6ff; color: #2563eb; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; border: 1px solid #bfdbfe; }
-.modal-actions { display: flex; justify-content: flex-end; align-items: center; margin-top: 8px; }
+.modal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 8px; }
+
+@media (max-width: 480px) {
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .modal-actions :deep(button) {
+    width: 100%;
+    margin: 0;
+  }
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .detail-row b {
+    text-align: left;
+  }
+  .status-select-wrapper {
+    width: 100%;
+    text-align: left;
+    margin-top: 8px;
+  }
+}
 </style>
