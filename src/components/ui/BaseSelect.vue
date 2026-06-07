@@ -96,7 +96,7 @@ const props = defineProps({
   searchable: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['update:modelValue', 'search'])
+const emit = defineEmits(['update:modelValue', 'search', 'change'])
 
 const uuid = computed(() => `select-${Math.random().toString(36).substr(2, 9)}`)
 const isOpen = ref(false)
@@ -153,6 +153,7 @@ const closeDropdown = () => {
 
 const selectOption = (option) => {
   emit('update:modelValue', option.value)
+  emit('change', option.value)
   isOpen.value = false
   searchQuery.value = ''
   emit('search', '')
