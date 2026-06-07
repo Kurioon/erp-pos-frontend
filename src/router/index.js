@@ -65,29 +65,23 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, from) => {
+router.beforeEach((to) => {
   const token = localStorage.getItem('token')
-  let userRole = null
-
-  try {
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
-      userRole = JSON.parse(userStr).role
+  
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      const userRole = payload.role
+      
+      if (to.meta.requiresAdmin && userRole !== 'admin') {
+        return { name: 'dashboard' }
+      }
+    } catch {
+      console.error('Помилка читання ролі користувача')
     }
-  } catch (error) {
-    console.error('Помилка читання ролі користувача')
   }
 
   if (to.meta.requiresAuth && !token) {
-    return '/login'
-  } else if (to.meta.guestOnly && token) {
-    return userRole === USER_ROLES.ADMIN ? '/dashboard' : '/pos'
-  } else if (to.meta.requiresAuth && to.meta.allowedRoles) {
-    if (userRole && to.meta.allowedRoles.includes(userRole)) {
-      return true
-    } else {
-      return userRole === USER_ROLES.SELLER ? '/pos' : '/login'
-    }
   }
   return true
 })

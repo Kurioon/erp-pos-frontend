@@ -149,7 +149,11 @@ export const useCartStore = defineStore('pos', () => {
         window.dispatchEvent(new CustomEvent('api-error', { detail: { message: `Доступно: ${existing.stock} шт.`, type: 'warning' } }))
         return
       }
-      newQty > 0 ? existing.qty = newQty : removeItem(productId)
+      if (newQty > 0) {
+        existing.qty = newQty
+      } else {
+        removeItem(productId)
+      }
     }
   }
 
