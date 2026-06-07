@@ -10,13 +10,13 @@
           #{{ sourceDocId || '?' }}
         </b>
       </div>
-      <div v-if="counterparty" class="detail-row">
+      <div v-if="counterparty && counterparty.name" class="detail-row">
         <span>Клієнт:</span>
         <b>
           <a href="#" @click.prevent="openCounterpartyDrawer(counterparty.id)" class="text-link font-bold">
             {{ counterparty.name }}
           </a> 
-          <span class="text-muted">({{ counterparty.phone }})</span>
+          <span class="text-muted" v-if="counterparty.phone">({{ counterparty.phone }})</span>
         </b>
       </div>
       <div class="detail-row">
