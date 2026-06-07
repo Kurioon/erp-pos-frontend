@@ -507,9 +507,9 @@ const getHistoryQtyClass = (qty) => {
 </script>
 
 <style scoped>
-.panel-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.3); backdrop-filter: blur(2px); z-index: 900; opacity: 0; visibility: hidden; transition: all 0.25s ease; }
+.panel-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.3); backdrop-filter: blur(2px); z-index: 10000; opacity: 0; visibility: hidden; transition: all 0.25s ease; }
 .panel-overlay.is-open { opacity: 1; visibility: visible; }
-.side-panel { position: fixed; top: 0; right: 0; width: 440px; max-width: 100vw; height: 100vh; background: white; box-shadow: -10px 0 25px rgba(0,0,0,0.08); z-index: 1000; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; border-left: 1px solid #e2e8f0; }
+.side-panel { position: fixed; top: 0; right: 0; width: 440px; max-width: 100vw; height: 100vh; background: white; box-shadow: -10px 0 25px rgba(0,0,0,0.08); z-index: 10001; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; border-left: 1px solid #e2e8f0; }
 .side-panel.is-open { transform: translateX(0); }
 .panel-header { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #f1f5f9; }
 .panel-sku { color: #64748b; font-size: 0.85rem; margin: 0 0 4px 0; }
