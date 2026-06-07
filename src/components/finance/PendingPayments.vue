@@ -47,6 +47,7 @@
       :is-open="isDetailsOpen"
       :order="selectedOrder"
       @close="isDetailsOpen = false"
+      @pay="handleModalPay"
     />
 
     <ConfirmModal
@@ -90,6 +91,11 @@ onMounted(() => {
 const openDetails = (order) => {
   selectedOrder.value = order
   isDetailsOpen.value = true
+}
+
+const handleModalPay = (order) => {
+  isDetailsOpen.value = false
+  handlePrepay(order)
 }
 
 const handlePrepay = async (order) => {
