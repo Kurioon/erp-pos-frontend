@@ -153,7 +153,7 @@
 
           <div class="section-header mt-6">
             <h3>Закупівлі (Постачальник)</h3>
-            <BaseButton class="btn-sm" @click="emit('new-purchase')">+ Нова закупівля</BaseButton>
+            <BaseButton class="btn-sm" @click="openPurchaseModal">+ Нова закупівля</BaseButton>
           </div>
           <div class="table-container">
             <table class="data-table">
@@ -186,6 +186,14 @@
       </div>
     </div>
   </div>
+
+  <PurchaseFormModal
+    v-if="isPurchaseModalOpen"
+    :is-open="isPurchaseModalOpen"
+    :fixed-supplier-id="counterparty?.id"
+    @close="isPurchaseModalOpen = false"
+    @save="handlePurchaseSubmit"
+  />
 </template>
 
 <script setup>
@@ -194,6 +202,8 @@ import { useCounterpartiesStore } from '@/stores/counterparties'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
+import api from '@/api/axios'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -217,6 +227,33 @@ const purchases = ref([])
 const isLoadingOrders = ref(false)
 const isLoadingJobs = ref(false)
 const isLoadingPurchases = ref(false)
+
+const isPurchaseModalOpen = ref(false)
+
+const openPurchaseModal = () => {
+  isPurchaseModalOpen.value = true
+}
+
+const handlePurchaseSubmit = async (payload) => {
+  try {
+    await api.post(`/counterparties/${props.counterparty.id}/create-order/`, payload)
+    isPurchaseModalOpen.value = false
+    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Закупівля створена', type: 'success' } }))
+    
+    // Refresh purchases list
+    isLoadingPurchases.value = true
+    store.fetchOrders(props.counterparty.id, { order_type: 'purchase' }).then(data => {
+      purchases.value = data.results || []
+    }).finally(() => {
+      isLoadingPurchases.value = false
+    })
+    
+    // Refresh balance
+    store.fetchBalance(props.counterparty.id).then(data => balanceData.value = data)
+  } catch (error) {
+    console.error('Помилка при створенні закупівлі:', error)
+  }
+}
 
 watch(
   () => props.isOpen,
