@@ -4,23 +4,11 @@
 
       <div class="form-row-top">
         <div class="form-group">
-          <div class="supplier-label-container">
-            <label class="form-label">Постачальник</label>
-            <button type="button" class="inline-add-btn" @click="isAddingNewSupplier = !isAddingNewSupplier">
-              {{ isAddingNewSupplier ? '← До списку' : '+ Новий' }}
-            </button>
-          </div>
-
-          <BaseSelect
-            v-if="!isAddingNewSupplier"
-            v-model="localOrder.supplier"
-            :options="supplierOptions"
-            placeholder="Оберіть..."
+          <CounterpartySelect
+            v-model="localOrder.counterparty"
+            label="Контрагент (Постачальник)"
+            role-filter="supplier"
           />
-          <div v-else class="inline-supplier-input-block">
-            <BaseInput v-model="newSupplierName" label="" placeholder="Назва..." @keyup.enter="handleAddNewSupplier" />
-            <BaseButton variant="secondary" @click="handleAddNewSupplier">Додати</BaseButton>
-          </div>
         </div>
 
         <div class="form-group">
@@ -119,16 +107,16 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import FilterBar from '@/components/ui/FilterBar.vue'
 import ProductFormModal from '@/components/warehouses/ProductFormModal.vue'
+import CounterpartySelect from '@/components/counterparties/CounterpartySelect.vue'
 import { useCategoriesStore } from '@/stores/categories'
 
 const props = defineProps({
   isOpen: Boolean,
   editMode: Boolean,
-  orderData: Object,
-  suppliers: Array
+  orderData: Object
 })
 
-const emit = defineEmits(['close', 'save', 'add-supplier'])
+const emit = defineEmits(['close', 'save'])
 const cartStore = useCartStore()
 const categoriesStore = useCategoriesStore()
 
@@ -166,37 +154,29 @@ const openProductModal = (item) => {
 }
 
 const onProductCreated = async (newProduct) => {
-  // Додаємо створений товар в локальний список cartStore, щоб він одразу з'явився в опціях
   if (!cartStore.products.find(p => p.id === newProduct.id)) {
     cartStore.products.unshift(newProduct)
   }
   
-  // Якщо створення викликано для конкретного рядка (якого вже немає, бо кнопка зверху), 
-  // але ми можемо підставити його в порожній рядок
   const emptyRow = localOrder.value.items.find(i => !i.product_id)
   if (emptyRow) {
     emptyRow.product_id = newProduct.id
     handleProductChange(emptyRow)
   } else {
-    // Або створюємо новий рядок
     const newItem = { product_id: newProduct.id, qty: 1, price: 0 }
     localOrder.value.items.push(newItem)
     handleProductChange(newItem)
   }
 }
 
-const isAddingNewSupplier = ref(false)
-const newSupplierName = ref('')
-
 const localOrder = ref({
-  supplier: '',
+  counterparty: '',
   date: new Date().toISOString().split('T')[0],
   items: [{ product_id: '', qty: 1, price: 0 }]
 })
 
 watch(() => props.orderData, (newData) => {
   if (props.editMode && newData) {
-    // Трансформуємо дату правильно: якщо це об'єкт Date, то .toISOString()
     let dateStr = ''
     if (newData.date) {
       const dateObj = new Date(newData.date)
@@ -206,19 +186,19 @@ watch(() => props.orderData, (newData) => {
     }
     
     localOrder.value = {
-      supplier: newData.supplier || '',
+      counterparty: newData.counterparty || '',
       date: dateStr,
       items: newData.items && Array.isArray(newData.items) && newData.items.length > 0
         ? newData.items.map(item => ({
-            product_id: item.product ? Number(item.product) : '',
-            qty: Number(item.qty || item.quantity || 1),
-            price: Number(item.price || 0)
+            product_id: item.product,
+            qty: item.quantity,
+            price: Number(item.price)
           }))
         : [{ product_id: '', qty: 1, price: 0 }]
     }
   } else if (!props.editMode) {
     localOrder.value = {
-      supplier: '',
+      counterparty: '',
       date: new Date().toISOString().split('T')[0],
       items: [{ product_id: '', qty: 1, price: 0 }]
     }
@@ -234,37 +214,15 @@ onMounted(async () => {
   }
 })
 
-// === АВТОМАТИЧНЕ ПІДСТАВЛЕННЯ ЦІНИ ===
 const handleProductChange = (item) => {
   if (!item.product_id) return
-
-  // Шукаємо обраний товар у каталозі
   const product = cartStore.products.find(p => p.id === item.product_id)
-
   if (product) {
-    // Підставляємо закупівельну ціну (purchase_price). Якщо її нема - звичайну ціну, або 0.
     item.price = Number(product.purchase_price || product.price || 0)
   }
 }
 
-const supplierOptions = computed(() => {
-  const opts = props.suppliers.map(s => ({ value: s, label: s }))
-  if (localOrder.value.supplier && !props.suppliers.includes(localOrder.value.supplier)) {
-    opts.unshift({ value: localOrder.value.supplier, label: localOrder.value.supplier })
-  }
-  return opts
-})
-
 const productOptions = computed(() => cartStore.products.map(p => ({ value: p.id, label: p.title || p.name })))
-
-const handleAddNewSupplier = () => {
-  const cleanName = newSupplierName.value.trim()
-  if (!cleanName) return
-  emit('add-supplier', cleanName)
-  localOrder.value.supplier = cleanName
-  newSupplierName.value = ''
-  isAddingNewSupplier.value = false
-}
 
 const addFormItem = () => localOrder.value.items.push({ product_id: '', qty: 1, price: 0 })
 const removeFormItem = (index) => { if (localOrder.value.items.length > 1) localOrder.value.items.splice(index, 1) }
@@ -279,14 +237,11 @@ const isFormValid = computed(() => {
 
 const submitDraft = () => {
   const payload = {
-    comment_ttn: localOrder.value.supplier
-      ? `Постачальник: ${localOrder.value.supplier} | Дата: ${localOrder.value.date}`
-      : `Дата: ${localOrder.value.date}`,
     total_amount: formTotalSum.value,
     items: validItems.value.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price }))
   }
-  if (localOrder.value.supplier) {
-    payload.supplier = localOrder.value.supplier
+  if (localOrder.value.counterparty) {
+    payload.counterparty = localOrder.value.counterparty
   }
   emit('save', payload)
 }
@@ -294,15 +249,12 @@ const submitDraft = () => {
 const submitConfirm = () => {
   if (!isFormValid.value) return
   const payload = {
-    comment_ttn: localOrder.value.supplier
-      ? `Постачальник: ${localOrder.value.supplier} | Дата: ${localOrder.value.date}`
-      : `Дата: ${localOrder.value.date}`,
     total_amount: formTotalSum.value,
     items: validItems.value.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price })),
     status: 'pending' // TODO: or 'received' depending on logic, for now draft is enough, emit 'save-confirm' if supported. Wait, ProcurementView just handles 'save' as draft.
   }
-  if (localOrder.value.supplier) {
-    payload.supplier = localOrder.value.supplier
+  if (localOrder.value.counterparty) {
+    payload.counterparty = localOrder.value.counterparty
   }
   // If ProcurementView doesn't handle save-confirm yet, we just emit save for now.
   payload.auto_confirm = true

@@ -49,7 +49,12 @@
                 </div>
                 <div class="info-row">
                   <span class="info-label">Постачальник:</span>
-                  <span class="info-val">{{ fullProductDetails.supplier_name || '—' }}</span>
+                  <span class="info-val">
+                    <a v-if="fullProductDetails.supplier || fullProductDetails.counterparty" href="#" @click.prevent="openDrawer(fullProductDetails.supplier || fullProductDetails.counterparty)" class="text-link">
+                      {{ fullProductDetails.supplier_name || fullProductDetails.counterparty_name || 'Не вказано' }}
+                    </a>
+                    <span v-else>{{ fullProductDetails.supplier_name || fullProductDetails.counterparty_name || '—' }}</span>
+                  </span>
                 </div>
               </div>
 
@@ -231,6 +236,7 @@ import IconMove from '@/components/icons/IconMove.vue'
 import IconHistory from '@/components/icons/IconHistory.vue'
 import IconInfo from '@/components/icons/IconInfo.vue'
 import { useExchangeRatesStore } from '@/stores/exchangeRates'
+import { useCounterpartiesStore } from '@/stores/counterparties'
 
 const props = defineProps({
   product: { type: Object, default: null },
@@ -239,7 +245,12 @@ const props = defineProps({
   readonly: { type: Boolean, default: false }
 })
 
+const counterpartiesStore = useCounterpartiesStore()
 const emit = defineEmits(['close', 'save', 'move-stock'])
+
+const openDrawer = (id) => {
+  counterpartiesStore.openGlobalDrawer(id)
+}
 
 const exchangeRatesStore = useExchangeRatesStore()
 
