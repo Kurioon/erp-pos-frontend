@@ -57,21 +57,31 @@ export const useFinanceStore = defineStore('finance', () => {
 
   const fetchPartialOrders = async () => {
     try {
-      const response = await api.get('/orders/?status=partial')
+      const response = await api.get('/transactions/?status=pending')
       partialOrders.value = response.data.results || response.data || []
     } catch (error) {
-      console.error('Помилка завантаження часткових замовлень:', error)
+      console.error('Помилка завантаження боргів:', error)
     }
   }
 
-  const submitPrepay = async (orderId, amount, cashboxId) => {
+  const submitPrepay = async (transaction, amount, cashboxId) => {
     isSubmittingPrepay.value = true
     try {
-      await api.post(`/orders/${orderId}/prepay/`, {
-        amount: Number(amount),
-        cash_register: cashboxId,
-        currency: 'UAH'
-      })
+      const source = transaction.source_document || {}
+      
+      if (source.type === 'repair') {
+        await api.post(`/warehouses/service-jobs/${source.id}/payment/`, {
+          amount: Number(amount),
+          cash_register: cashboxId,
+          currency: transaction.currency || 'UAH'
+        })
+      } else {
+        await api.post(`/orders/${source.id}/prepay/`, {
+          amount: Number(amount),
+          cash_register: cashboxId,
+          currency: transaction.currency || 'UAH'
+        })
+      }
 
       window.dispatchEvent(
         new CustomEvent('app-success', {

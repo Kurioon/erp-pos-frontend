@@ -16,12 +16,20 @@
         @click="openDetails(order)"
       >
         <div class="po-info">
-          <span class="po-id">Замовлення #{{ order.id }}</span>
-          <span class="po-date">{{ formatDate(order.created_at || new Date()) }}</span>
+          <span class="po-id">
+            <template v-if="order.source_document?.type === 'repair'">Ремонт</template>
+            <template v-else-if="order.source_document?.type === 'purchase'">Закупівля</template>
+            <template v-else>Замовлення</template>
+            #{{ order.source_document?.id || '?' }}
+          </span>
+          <span class="po-date">{{ formatDate(order.timestamp || new Date()) }}</span>
+        </div>
+        <div v-if="order.counterparty" class="counterparty-info mt-2 mb-2 text-primary font-medium">
+          {{ order.counterparty.name }}
         </div>
         <div class="po-amounts">
-          <div class="amt-row"><span>Загальна сума:</span> <strong>{{ formatCurrency(order.total_amount, order.currency) }}</strong></div>
-          <div class="amt-row text-danger"><span>Борг (залишок):</span> <strong>{{ formatCurrency(order.balance_due, order.currency) }}</strong></div>
+          <div class="amt-row"><span>Загальна сума:</span> <strong>{{ formatCurrency(order.source_document?.total_amount, order.currency) }}</strong></div>
+          <div class="amt-row text-danger"><span>Борг (залишок):</span> <strong>{{ formatCurrency(order.amount, order.currency) }}</strong></div>
         </div>
 
         <BaseButton
@@ -30,7 +38,7 @@
           :disabled="financeStore.isSubmittingPrepay"
           @click.stop="handlePrepay(order)"
         >
-          Внести {{ formatCurrency(order.balance_due, order.currency) }}
+          Внести {{ formatCurrency(order.amount, order.currency) }}
         </BaseButton>
       </div>
     </div>
@@ -94,16 +102,21 @@ const handlePrepay = async (order) => {
 
   orderToPay.value = order
   cashboxToUse.value = cashboxId
-  confirmMessage.value = `Ви збираєтесь внести залишок <strong>${formatCurrency(order.balance_due, order.currency)}</strong> за замовлення <strong>#${order.id}</strong>.<br><br>Підтвердити операцію?`
+  
+  const docType = order.source_document?.type === 'repair' ? 'ремонт' : 
+                  (order.source_document?.type === 'purchase' ? 'закупівлю' : 'замовлення');
+  const docId = order.source_document?.id || '?';
+
+  confirmMessage.value = `Ви збираєтесь внести залишок <strong>${formatCurrency(order.amount, order.currency)}</strong> за ${docType} <strong>#${docId}</strong>.<br><br>Підтвердити операцію?`
   isConfirmOpen.value = true
 }
 
 const executePrepay = async () => {
-  if (!orderToPay.value || !cashboxToUse.value) return
-  isConfirmOpen.value = false // close immediately to not block UI during request
-  await financeStore.submitPrepay(orderToPay.value.id, orderToPay.value.balance_due, cashboxToUse.value)
-  orderToPay.value = null
-  cashboxToUse.value = null
+  if (orderToPay.value) {
+    await financeStore.submitPrepay(orderToPay.value, orderToPay.value.amount, cashboxToUse.value)
+    isConfirmOpen.value = false
+    orderToPay.value = null
+  }
 }
 </script>
 

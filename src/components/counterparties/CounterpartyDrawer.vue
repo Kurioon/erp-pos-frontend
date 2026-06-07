@@ -343,7 +343,7 @@ const getRoleLabel = (role) => {
   bottom: 0;
   background: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(2px);
-  z-index: 1000;
+  z-index: 10000;
   display: flex;
   justify-content: flex-end;
 }
