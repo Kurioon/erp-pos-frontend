@@ -28,6 +28,13 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
         <span>{{ formatDate(job.created_at) }}</span>
       </div>
+      
+      <div class="payment-info" v-if="job.price > 0">
+        <span class="payment-pill" :class="getPaymentClass(job.payment_status)">
+          {{ getPaymentLabel(job.payment_status) }} 
+          <span v-if="job.payment_status === 'partial'">({{ job.paid_amount }} / {{ job.price }})</span>
+        </span>
+      </div>
     </div>
   </div>
 </template>
@@ -41,6 +48,22 @@ defineProps({
     required: true
   }
 })
+
+const getPaymentLabel = (status) => {
+  switch (status) {
+    case 'paid': return 'Оплачено'
+    case 'partial': return 'Частково'
+    default: return 'Не оплачено'
+  }
+}
+
+const getPaymentClass = (status) => {
+  switch (status) {
+    case 'paid': return 'payment-paid'
+    case 'partial': return 'payment-partial'
+    default: return 'payment-unpaid'
+  }
+}
 </script>
 
 <style scoped>
@@ -53,4 +76,10 @@ defineProps({
 .description { color: #64748b; font-size: 0.85rem; margin: 0 0 12px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .customer-info, .date-info { display: flex; align-items: center; gap: 6px; color: #64748b; font-size: 0.8rem; margin-bottom: 4px; }
 .repair-card:focus-visible { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1); transform: translateY(-2px); }
+
+.payment-info { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+.payment-pill { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.payment-paid { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.payment-partial { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+.payment-unpaid { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 </style>

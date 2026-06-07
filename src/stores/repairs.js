@@ -149,22 +149,41 @@ export const useRepairsStore = defineStore('repairs', () => {
 
       const index = jobs.value.findIndex((job) => job.id === id)
       if (index !== -1) {
-        jobs.value[index].status = newStatus
+        jobs.value[index].status = response.data.status
         jobs.value[index].updated_at = response.data.updated_at
       }
 
       window.dispatchEvent(
         new CustomEvent('app-success', {
-          detail: { message: 'Статус ремонту оновлено', type: 'success' },
+          detail: { message: 'Статус ремонту успішно оновлено!', type: 'success' },
         }),
       )
     } catch (error) {
       console.error('Помилка оновлення статусу:', error)
+      throw error
+    }
+  }
+
+  const payJob = async (id, paymentData) => {
+    try {
+      const response = await api.post(`/service-jobs/${id}/pay/`, paymentData)
+      
+      const index = jobs.value.findIndex((job) => job.id === id)
+      if (index !== -1) {
+        jobs.value[index].payment_status = response.data.payment_status
+        jobs.value[index].paid_amount = response.data.paid_amount
+        jobs.value[index].balance_due = response.data.balance_due
+      }
+
       window.dispatchEvent(
-        new CustomEvent('api-error', {
-          detail: { message: 'Не вдалося оновити статус ремонту', type: 'error' },
+        new CustomEvent('app-success', {
+          detail: { message: 'Оплата успішно прийнята!', type: 'success' },
         }),
       )
+      return response.data
+    } catch (error) {
+      console.error('Помилка оплати ремонту:', error)
+      throw error
     }
   }
 
@@ -225,6 +244,7 @@ export const useRepairsStore = defineStore('repairs', () => {
     createJob,
     updateJob,
     updateJobStatus,
+    payJob,
     deleteJob,
     downloadReceiptPdf,
   }

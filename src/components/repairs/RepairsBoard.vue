@@ -7,7 +7,7 @@
       </div>
       <div class="kanban-cards">
         <div v-for="item in pendingJobs" :key="item.id" class="draggable-card-wrapper" draggable="true" @dragstart="handleDragStart($event, item.id)">
-          <RepairCard :job="item" />
+          <RepairCard :job="item" @click="openDetails(item)" />
         </div>
       </div>
     </div>
@@ -19,7 +19,7 @@
       </div>
       <div class="kanban-cards">
         <div v-for="item in waitingJobs" :key="item.id" class="draggable-card-wrapper" draggable="true" @dragstart="handleDragStart($event, item.id)">
-          <RepairCard :job="item" />
+          <RepairCard :job="item" @click="openDetails(item)" />
         </div>
       </div>
     </div>
@@ -31,7 +31,7 @@
       </div>
       <div class="kanban-cards">
         <div v-for="item in completedJobs" :key="item.id" class="draggable-card-wrapper" draggable="true" @dragstart="handleDragStart($event, item.id)">
-          <RepairCard :job="item" />
+          <RepairCard :job="item" @click="openDetails(item)" />
         </div>
       </div>
     </div>
@@ -43,7 +43,7 @@
       </div>
       <div class="kanban-cards">
         <div v-for="item in deliveredJobs" :key="item.id" class="draggable-card-wrapper" draggable="true" @dragstart="handleDragStart($event, item.id)">
-          <RepairCard :job="item" />
+          <RepairCard :job="item" @click="openDetails(item)" />
         </div>
 
         <div v-if="archivedCount > 0 || showFullArchive" class="archive-zone">
@@ -54,6 +54,15 @@
         </div>
       </div>
     </div>
+
+    <RepairDetailsModal
+      v-if="isDetailsOpen"
+      :is-open="isDetailsOpen"
+      :job="selectedJob"
+      @close="isDetailsOpen = false"
+      @edit="handleEditFromModal"
+      @pay="handlePayFromModal"
+    />
   </div>
 </template>
 
@@ -62,9 +71,29 @@ import { ref, computed } from 'vue'
 import { useRepairsStore } from '@/stores/repairs'
 import { REPAIR_STATUSES } from '@/constants/repairs'
 import RepairCard from '@/components/repairs/RepairCard.vue'
+import RepairDetailsModal from '@/components/repairs/RepairDetailsModal.vue'
 
 const repairsStore = useRepairsStore()
+const emit = defineEmits(['edit', 'pay'])
+
 const showFullArchive = ref(false)
+const selectedJob = ref(null)
+const isDetailsOpen = ref(false)
+
+const openDetails = (job) => {
+  selectedJob.value = job
+  isDetailsOpen.value = true
+}
+
+const handleEditFromModal = (job) => {
+  isDetailsOpen.value = false
+  emit('edit', job)
+}
+
+const handlePayFromModal = (job) => {
+  isDetailsOpen.value = false
+  emit('pay', job)
+}
 
 const handleDragStart = (event, jobId) => {
   event.dataTransfer.setData('text/plain', String(jobId))
