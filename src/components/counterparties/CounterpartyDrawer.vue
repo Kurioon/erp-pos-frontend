@@ -55,16 +55,20 @@
           <h3>Фінансовий баланс (Покупець)</h3>
           <div class="balance-cards">
             <div class="stat-card">
-              <div class="stat-label">Сплачено</div>
-              <div class="stat-value text-success">{{ formatCurrency(balanceData?.total_paid || 0) }}</div>
+              <div class="stat-label">Оплачено</div>
+              <div class="stat-value text-success">{{ formatCurrency(balanceData?.buyer?.total_paid || 0) }}</div>
             </div>
             <div class="stat-card">
               <div class="stat-label">Залишок боргу</div>
-              <div class="stat-value text-danger">{{ formatCurrency(balanceData?.total_balance_due || 0) }}</div>
+              <div class="stat-value text-danger">{{ formatCurrency(balanceData?.buyer?.total_balance_due || 0) }}</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Часткових замовлень</div>
-              <div class="stat-value">{{ balanceData?.orders_partial || 0 }}</div>
+              <div class="stat-label">В роботі: ремонти</div>
+              <div class="stat-value">{{ balanceData?.buyer?.repairs_unpaid || 0 }}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">В роботі: замовлення</div>
+              <div class="stat-value">{{ balanceData?.buyer?.orders_partial || 0 }}</div>
             </div>
           </div>
 
@@ -135,7 +139,19 @@
 
         <!-- СЕКЦІЯ ПОСТАЧАЛЬНИКА -->
         <div v-if="['supplier', 'both'].includes(counterparty.role)" class="role-section">
-          <div class="section-header">
+          <h3>Фінансовий стан (Постачальник)</h3>
+          <div class="balance-cards">
+            <div class="stat-card">
+              <div class="stat-label">Сума закупівель</div>
+              <div class="stat-value text-primary">{{ formatCurrency(balanceData?.supplier?.total_purchases || 0) }}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Кількість закупівель</div>
+              <div class="stat-value">{{ balanceData?.supplier?.purchases_count || 0 }}</div>
+            </div>
+          </div>
+
+          <div class="section-header mt-6">
             <h3>Закупівлі (Постачальник)</h3>
             <BaseButton class="btn-sm" @click="emit('new-purchase')">+ Нова закупівля</BaseButton>
           </div>
@@ -477,6 +493,7 @@ const getRoleLabel = (role) => {
 
 .text-success { color: #10b981; }
 .text-danger { color: #ef4444; }
+.text-primary { color: #3b82f6; }
 
 .table-container {
   background: white;
