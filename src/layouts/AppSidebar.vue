@@ -40,7 +40,6 @@ import IconRepair from '@/components/icons/IconRepair.vue'
 import IconFinance from '@/components/icons/IconFinance.vue'
 import IconUsers from '@/components/icons/IconUsers.vue'
 import IconLock from '@/components/icons/IconLock.vue' // Reusing a lock icon or similar for admin
-import IconUsers from '@/components/icons/IconUsers.vue'
 
 defineProps({
   isMobileOpen: {
