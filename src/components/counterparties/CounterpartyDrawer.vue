@@ -93,7 +93,7 @@
                 <tr v-else-if="orders.length === 0">
                   <td colspan="5" class="text-center py-2 empty-text">Немає замовлень</td>
                 </tr>
-                <tr v-else v-for="order in orders" :key="order.id">
+                <tr v-else v-for="order in orders" :key="order.id" @click="openOrderDetails(order)" class="clickable-row">
                   <td>{{ order.id }}</td>
                   <td>{{ formatDate(order.created_at) }}</td>
                   <td>{{ formatCurrency(order.total_amount) }}</td>
@@ -124,7 +124,7 @@
                 <tr v-else-if="serviceJobs.length === 0">
                   <td colspan="4" class="text-center py-2 empty-text">Немає ремонтів</td>
                 </tr>
-                <tr v-else v-for="job in serviceJobs" :key="job.id">
+                <tr v-else v-for="job in serviceJobs" :key="job.id" @click="openRepairDetails(job)" class="clickable-row">
                   <td>{{ job.id }}</td>
                   <td>{{ job.device_name }}</td>
                   <td><BaseStatusBadge status="info" :text="job.status" /></td>
@@ -194,6 +194,20 @@
     @close="isPurchaseModalOpen = false"
     @save="handlePurchaseSubmit"
   />
+
+  <PendingOrderDetailsModal
+    v-if="isOrderModalOpen"
+    :is-open="isOrderModalOpen"
+    :order="selectedOrder"
+    @close="isOrderModalOpen = false"
+  />
+
+  <RepairDetailsModal
+    v-if="isRepairModalOpen"
+    :is-open="isRepairModalOpen"
+    :job="selectedRepair"
+    @close="isRepairModalOpen = false"
+  />
 </template>
 
 <script setup>
@@ -203,6 +217,8 @@ import { formatCurrency, formatDate } from '@/utils/formatters'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
+import PendingOrderDetailsModal from '@/components/finance/PendingOrderDetailsModal.vue'
+import RepairDetailsModal from '@/components/repairs/RepairDetailsModal.vue'
 import api from '@/api/axios'
 
 const props = defineProps({
@@ -230,8 +246,24 @@ const isLoadingPurchases = ref(false)
 
 const isPurchaseModalOpen = ref(false)
 
+const isOrderModalOpen = ref(false)
+const selectedOrder = ref(null)
+
+const isRepairModalOpen = ref(false)
+const selectedRepair = ref(null)
+
 const openPurchaseModal = () => {
   isPurchaseModalOpen.value = true
+}
+
+const openOrderDetails = (order) => {
+  selectedOrder.value = order
+  isOrderModalOpen.value = true
+}
+
+const openRepairDetails = (job) => {
+  selectedRepair.value = job
+  isRepairModalOpen.value = true
 }
 
 const handlePurchaseSubmit = async (payload) => {
@@ -543,6 +575,18 @@ const getRoleLabel = (role) => {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+}
+
+.data-table th, .data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.clickable-row:hover {
+  background-color: #f1f5f9;
 }
 
 .data-table th, .data-table td {
