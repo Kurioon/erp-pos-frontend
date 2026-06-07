@@ -156,27 +156,34 @@
             <BaseButton class="btn-sm" @click="openPurchaseModal">+ Нова закупівля</BaseButton>
           </div>
           <div class="table-container">
-            <table class="data-table">
+            <table class="nested-table">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Дата</th>
-                  <th>Сума</th>
-                  <th>Статус</th>
+                  <th>ID</th>
+                  <th>ДАТА</th>
+                  <th>СУМА</th>
+                  <th>СТАТУС</th>
+                  <th class="text-right">ДІЇ</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="isLoadingPurchases">
-                  <td colspan="4" class="text-center py-2">Завантаження...</td>
+                  <td colspan="5" class="text-center py-2">Завантаження...</td>
                 </tr>
                 <tr v-else-if="purchases.length === 0">
-                  <td colspan="4" class="text-center py-2 empty-text">Немає закупівель</td>
+                  <td colspan="5" class="text-center py-2 empty-text">Немає закупівель</td>
                 </tr>
                 <tr v-else v-for="purchase in purchases" :key="purchase.id" @click="openPurchaseView(purchase)" class="clickable-row">
                   <td>{{ purchase.id }}</td>
                   <td>{{ formatDate(purchase.created_at) }}</td>
                   <td>{{ formatCurrency(purchase.total_amount) }}</td>
                   <td><BaseStatusBadge status="default" :text="getOrderStatusLabel(purchase.status)" /></td>
+                  <td class="text-right actions-col" @click.stop>
+                    <div class="actions-wrapper" v-if="['draft', 'чернетка'].includes(String(purchase.status).toLowerCase())">
+                      <button class="action-btn edit-btn" @click="openPurchaseView(purchase)">Редаг.</button>
+                      <button class="action-btn approve-btn" @click="approvePurchase(purchase.id)">Затв.</button>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -353,8 +360,18 @@ const handleRepairPaid = () => {
 }
 
 const handlePurchaseUpdate = async (payload) => {
-  // We can just close the modal, if saving edits is supported by ProcurementView we could dispatch it
   isPurchaseViewOpen.value = false
+  loadData()
+}
+
+const approvePurchase = async (id) => {
+  try {
+    await api.post(`/orders/${id}/approve/`)
+    window.dispatchEvent(new CustomEvent('app-success', { detail: { message: 'Закупівлю затверджено!' } }))
+    await loadData()
+  } catch (e) {
+    console.error('Помилка затвердження', e)
+  }
 }
 
 const handlePurchaseSubmit = async (payload) => {
@@ -716,4 +733,13 @@ const getJobStatusLabel = (status) => {
   padding: 4px 10px;
   font-size: 0.85rem;
 }
+
+.actions-col { width: 140px; padding-right: 12px; }
+.actions-wrapper { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.action-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.edit-btn { background: transparent; border: 1px solid #cbd5e1; color: #475569; }
+.edit-btn:hover { background-color: #f1f5f9; color: #0f172a; }
+.approve-btn { background-color: #2563eb; border: 1px solid #2563eb; color: white; }
+.approve-btn:hover:not(:disabled) { background-color: #1d4ed8; }
+
 </style>
