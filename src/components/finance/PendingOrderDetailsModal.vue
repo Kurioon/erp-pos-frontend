@@ -1,6 +1,16 @@
 <template>
   <BaseModal :is-open="isOpen" @close="$emit('close')" title="Деталі документа">
     <div v-if="order" class="details-grid">
+      <!-- Сценарій 2: статус надходження товару під замовлення -->
+      <div v-if="backorderStatus === 'awaiting'" class="backorder-alert alert-warning">
+        🟡 Очікує надходження товару
+        <span v-if="orderData?.backorder_purchase">(закупівля #{{ orderData.backorder_purchase.id }})</span>
+      </div>
+      <div v-else-if="backorderStatus === 'arrived'" class="backorder-alert alert-success">
+        🟢 Товар приїхав — можна видавати клієнту!
+        <span v-if="orderData?.backorder_purchase">(закупівля #{{ orderData.backorder_purchase.id }})</span>
+      </div>
+
       <div class="detail-row">
         <span>Документ-основа:</span>
         <b>
@@ -103,6 +113,13 @@ const orderData = ref(null)
 const isLoadingOrder = ref(false)
 const selectedProduct = ref(null)
 
+// Статус надходження товару під замовлення (Сценарій 2)
+const backorderStatus = computed(() => {
+  const bp = orderData.value?.backorder_purchase
+  if (!bp) return null
+  return bp.status === 'paid' ? 'arrived' : 'awaiting'
+})
+
 const openProductDrawer = (item) => {
   selectedProduct.value = { id: item.product, name: item.product_name || item.name }
 }
@@ -129,6 +146,9 @@ watch(() => props.isOpen, async (isOpen) => {
 
 <style scoped>
 .details-grid { display: flex; flex-direction: column; gap: 12px; }
+.backorder-alert { padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; }
+.alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #b45309; }
+.alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
 .detail-row { display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding: 8px 0; font-size: 0.95rem; }
 .highlight-row { background-color: #fef2f2; padding: 12px 8px; border-radius: 6px; border-bottom: none; margin-top: 8px; }
 .amt-positive { color: #166534; }

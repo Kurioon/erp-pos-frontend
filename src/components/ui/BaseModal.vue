@@ -80,4 +80,12 @@ watch(() => props.isOpen, (val) => {
 .modal-close-btn:hover, .modal-close-btn:focus-visible { background: #e2e8f0; color: #0f172a; outline: 2px solid #2563eb; }
 .modal-body { padding: 0 28px 28px; }
 .modal-footer { padding: 16px 28px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; }
+
+@media (max-width: 480px) {
+  .modal-content { width: 94%; max-height: 92vh; border-radius: 12px; }
+  .modal-header { padding: 16px 16px 12px; }
+  .modal-title { font-size: 1.1rem; }
+  .modal-body { padding: 0 16px 16px; }
+  .modal-footer { padding: 12px 16px; }
+}
 </style>

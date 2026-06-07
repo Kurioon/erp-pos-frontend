@@ -250,6 +250,7 @@
 import { ref, watch } from 'vue'
 import { useCounterpartiesStore } from '@/stores/counterparties'
 import { formatCurrency, formatDate } from '@/utils/formatters'
+import { REPAIR_STATUS_LABELS } from '@/constants/repairs'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
@@ -485,12 +486,7 @@ const getOrderStatusLabel = (status) => {
 }
 
 const getJobStatusLabel = (status) => {
-  const map = {
-    in_progress: 'В роботі',
-    completed: 'Готово',
-    cancelled: 'Скасовано'
-  }
-  return map[status] || status
+  return REPAIR_STATUS_LABELS[status] || status
 }
 </script>
 

@@ -2,6 +2,10 @@
   <BaseModal :is-open="isOpen" @close="emit('close')" :title="editMode ? 'Редагувати замовлення' : 'Нове замовлення'">
     <div class="purchase-modal-wrapper">
 
+      <div v-if="relatedSourceLabel" class="backorder-banner">
+        🔗 Ця закупівля виконується під {{ relatedSourceLabel }}
+      </div>
+
       <div class="form-row-top">
         <div class="form-group">
           <CounterpartySelect
@@ -119,7 +123,11 @@ const props = defineProps({
   isOpen: Boolean,
   editMode: Boolean,
   orderData: Object,
-  fixedSupplierId: { type: Number, default: null }
+  fixedSupplierId: { type: Number, default: null },
+  // Сценарій 2 (Backordering): прив'язка до джерела
+  relatedRetailOrderId: { type: Number, default: null },
+  relatedServiceJobId: { type: Number, default: null },
+  relatedSourceLabel: { type: String, default: '' }
 })
 
 const emit = defineEmits(['close', 'save'])
@@ -241,11 +249,17 @@ const isFormValid = computed(() => {
   return validItems.value.length > 0
 })
 
+const applyRelations = (payload) => {
+  if (props.relatedRetailOrderId) payload.related_retail_order = props.relatedRetailOrderId
+  if (props.relatedServiceJobId) payload.related_service_job = props.relatedServiceJobId
+  return payload
+}
+
 const submitDraft = () => {
-  const payload = {
+  const payload = applyRelations({
     total_amount: formTotalSum.value,
     items: validItems.value.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price }))
-  }
+  })
   if (localOrder.value.counterparty) {
     payload.counterparty = localOrder.value.counterparty
   }
@@ -254,11 +268,11 @@ const submitDraft = () => {
 
 const submitConfirm = () => {
   if (!isFormValid.value) return
-  const payload = {
+  const payload = applyRelations({
     total_amount: formTotalSum.value,
     items: validItems.value.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price })),
-    status: 'pending' 
-  }
+    status: 'pending'
+  })
   if (localOrder.value.counterparty) {
     payload.counterparty = localOrder.value.counterparty
   }
@@ -321,6 +335,16 @@ const submitConfirm = () => {
 .remove-item-btn { background: #fef2f2; border: 1px solid #fca5a5; color: #ef4444; width: 32px; height: 32px; border-radius: 6px; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s; padding: 0; margin: 0; }
 .remove-item-btn:hover:not(:disabled) { background: #fee2e2; }
 .remove-item-btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: #f87171; }
+
+.backorder-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
 
 .supplier-locked {
   display: flex;
