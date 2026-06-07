@@ -13,6 +13,7 @@
         searchPlaceholder="Пошук (ID замовлення)..."
         :filters="filterBarConfig"
         :modelValue="filters.search"
+        :filterValues="filters"
         @update:search="onSearchUpdate"
         @update:filter="onFilterUpdate"
         style="margin-bottom: 0;"
