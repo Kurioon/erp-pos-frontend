@@ -133,8 +133,15 @@
 
       <transition name="expand">
         <div v-if="paymentType === 'partial'" class="partial-payment-section">
+          <CounterpartySelect
+            v-model="counterpartyId"
+            label="Контрагент (Боржник) *"
+            role-filter="buyer"
+            class="mb-compact"
+          />
+          
          <BaseInput
-            :label="`Сума передоплати (${cartStore.currency}):`"
+            :label="`До оплати (${cartStore.currency}):`"
             type="text"
             inputmode="numeric"
             :model-value="cartStore.prepayAmount === 0 ? '' : String(cartStore.prepayAmount)"
@@ -204,10 +211,12 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import IconReceipt from '@/components/icons/IconReceipt.vue'
+import CounterpartySelect from '@/components/counterparties/CounterpartySelect.vue'
 
 const cartStore = useCartStore()
 const warehousesStore = useWarehousesStore()
 const paymentType = ref('full')
+const counterpartyId = ref('')
 const isSubmitting = ref(false)
 const showReceiptModal = ref(false)
 const lastCompletedOrder = ref(null)
@@ -299,7 +308,11 @@ const handlePrepayInput = (val) => {
 }
 
 const isPrepayInvalid = computed(() => {
-  return paymentType.value === 'partial' && cartStore.prepayAmount > cartStore.totalAmount
+  if (paymentType.value === 'partial') {
+    if (cartStore.prepayAmount > cartStore.totalAmount) return true
+    if (!counterpartyId.value) return true // Counterparty is required for partial
+  }
+  return false
 })
 
 const handleCheckout = () => {
@@ -334,6 +347,7 @@ const executeCheckout = async () => {
 
     const payload = {
       ...payloadData,
+      counterparty: counterpartyId.value || null,
       prepay_amount: 0,
       balance_due: cartStore.totalAmount,
       status: 'draft',
@@ -377,6 +391,7 @@ const executeCheckout = async () => {
 
     cartStore.clearCart()
     paymentType.value = 'full'
+    counterpartyId.value = ''
     await cartStore.fetchProducts()
     await warehousesStore.fetchWarehouses()
 

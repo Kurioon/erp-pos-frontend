@@ -35,6 +35,12 @@ const router = createRouter({
       meta: { requiresAuth: true, allowedRoles: [USER_ROLES.ADMIN] },
     },
     {
+      path: '/counterparties',
+      name: 'counterparties',
+      component: () => import('../views/CounterpartiesView.vue'),
+      meta: { requiresAuth: true, allowedRoles: [USER_ROLES.ADMIN] },
+    },
+    {
       path: '/repairs',
       name: 'repairs',
       component: () => import('../views/RepairsView.vue'),

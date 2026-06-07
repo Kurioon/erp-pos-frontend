@@ -24,7 +24,12 @@
         >
           <td class="text-muted font-medium">R00{{ job.id }}</td>
           <td class="font-bold text-dark">{{ job.device_name }}</td>
-          <td>{{ job.customer_name }}</td>
+          <td>
+            <a v-if="job.counterparty" href="#" @click.stop="openDrawer(job.counterparty)" class="text-link">
+              {{ job.customer_name }}
+            </a>
+            <span v-else>{{ job.customer_name }}</span>
+          </td>
           <td class="text-truncate" :title="job.description">{{ job.description }}</td>
           <td>
             <span class="storage-pill">
@@ -97,13 +102,19 @@ import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 import RepairDetailsModal from '@/components/repairs/RepairDetailsModal.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { useCounterpartiesStore } from '@/stores/counterparties'
 
 const repairsStore = useRepairsStore()
+const counterpartiesStore = useCounterpartiesStore()
 const emit = defineEmits(['edit', 'pay'])
 const selectedJob = ref(null)
 const isDetailsOpen = ref(false)
 
 const jobToDeleteId = ref(null)
+
+const openDrawer = (id) => {
+  counterpartiesStore.openGlobalDrawer(id)
+}
 
 const openDetails = (job) => {
   selectedJob.value = job
