@@ -25,6 +25,14 @@
           @close="isModalOpen = false"
           @submit="handleSaveRepair"
         />
+
+        <RepairPaymentModal
+          v-if="isPaymentModalOpen"
+          :is-open="isPaymentModalOpen"
+          :job-data="paymentJobData"
+          @close="isPaymentModalOpen = false"
+          @paid="handlePaymentSuccess"
+        />
       </div>
     </header>
 
@@ -69,7 +77,7 @@
     </div>
 
     <transition v-else name="fade-slide" mode="out-in">
-      <component :is="currentViewComponent" @edit="openEditModal" />
+      <component :is="currentViewComponent" @edit="openEditModal" @pay="openPaymentModal" />
     </transition>
   </div>
 </template>
@@ -82,6 +90,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import RepairFormModal from '@/components/repairs/RepairFormModal.vue'
+import RepairPaymentModal from '@/components/repairs/RepairPaymentModal.vue'
 import RepairsBoard from '@/components/repairs/RepairsBoard.vue'
 import RepairsTable from '@/components/repairs/RepairsTable.vue'
 
@@ -89,6 +98,8 @@ const repairsStore = useRepairsStore()
 const viewMode = ref('kanban')
 
 const isModalOpen = ref(false)
+const isPaymentModalOpen = ref(false)
+const paymentJobData = ref(null)
 const isEditMode = ref(false)
 const selectedJob = ref(null)
 
@@ -155,18 +166,35 @@ const openEditModal = (job) => {
   isModalOpen.value = true
 }
 
+const openPaymentModal = (job) => {
+  paymentJobData.value = job
+  isPaymentModalOpen.value = true
+}
+
 const handleSaveRepair = async (formData) => {
   try {
+    let jobRes = null
     if (isEditMode.value) {
       await repairsStore.updateJob(selectedJob.value.id, formData)
     } else {
-      await repairsStore.createJob(formData)
+      jobRes = await repairsStore.createJob(formData)
     }
+    
     isModalOpen.value = false
     applyFilters()
+
+    if (!isEditMode.value && jobRes) {
+      // Відкриваємо модалку оплати для новоствореного ремонту
+      paymentJobData.value = { ...formData, id: jobRes.job_id, ...jobRes }
+      isPaymentModalOpen.value = true
+    }
   } catch (error) {
     console.error('Помилка при збереженні:', error)
   }
+}
+
+const handlePaymentSuccess = () => {
+  applyFilters()
 }
 
 const currentViewComponent = computed(() => {

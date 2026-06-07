@@ -4,13 +4,14 @@
       <thead>
         <tr>
           <th>ID</th>
-          <th>ПРИСТРІЙ</th>
-          <th>КЛІЄНТ</th>
-          <th>НЕСПРАВНІСТЬ</th>
-          <th>КОМІРКА</th>
-          <th>СТАТУС</th>
-          <th>ОЦІНКА</th>
-          <th>ДАТА</th>
+          <th>Пристрій</th>
+          <th>Клієнт</th>
+          <th>Опис проблеми</th>
+          <th>Локація</th>
+          <th>Статус</th>
+          <th>Оплата</th>
+          <th>Ціна</th>
+          <th>Дати</th>
           <th class="text-right" style="min-width: 100px;">ДІЇ</th>
         </tr>
       </thead>
@@ -28,12 +29,17 @@
           <td>
             <span class="storage-pill">
               <IconLocation />
-              {{ job.storage_cell || '—' }}
+              {{ job.storage_cell || 'Немає' }}
             </span>
           </td>
           <td>
             <BaseStatusBadge :class="REPAIR_STATUS_CLASSES[job.status] || 'type-neutral'">
               {{ REPAIR_STATUS_LABELS[job.status] || job.status }}
+            </BaseStatusBadge>
+          </td>
+          <td>
+            <BaseStatusBadge :class="getPaymentClass(job.payment_status)">
+              {{ getPaymentLabel(job.payment_status) }}
             </BaseStatusBadge>
           </td>
           <td class="font-medium">
@@ -61,6 +67,7 @@
       :job="selectedJob"
       @close="isDetailsOpen = false"
       @edit="handleEditFromModal"
+      @pay="handlePayFromModal"
     />
 
     <BaseModal
@@ -92,7 +99,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 
 const repairsStore = useRepairsStore()
-const emit = defineEmits(['edit'])
+const emit = defineEmits(['edit', 'pay'])
 const selectedJob = ref(null)
 const isDetailsOpen = ref(false)
 
@@ -117,6 +124,27 @@ const confirmDeleteJob = async () => {
 const handleEditFromModal = (job) => {
   isDetailsOpen.value = false
   emit('edit', job)
+}
+
+const handlePayFromModal = (job) => {
+  isDetailsOpen.value = false
+  emit('pay', job)
+}
+
+const getPaymentLabel = (status) => {
+  switch (status) {
+    case 'paid': return 'Оплачено'
+    case 'partial': return 'Частково'
+    default: return 'Не оплачено'
+  }
+}
+
+const getPaymentClass = (status) => {
+  switch (status) {
+    case 'paid': return 'status-delivered' // green
+    case 'partial': return 'status-waiting' // yellow
+    default: return 'status-pending' // gray
+  }
 }
 </script>
 

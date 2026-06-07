@@ -47,6 +47,7 @@
             />
           </div>
           <button
+            type="button"
             v-for="(option, index) in options"
             :key="option.value"
             class="option-btn"

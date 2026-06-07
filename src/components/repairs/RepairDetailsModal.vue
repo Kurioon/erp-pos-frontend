@@ -47,12 +47,21 @@
       </div>
 
       <div class="detail-section">
-        <h4 class="section-title">Хронологія</h4>
+        <h4 class="section-title">Фінанси</h4>
+        <div class="detail-row"><span>Орієнтовна вартість:</span> <b>{{ job.price || 0 }} UAH</b></div>
+        <div class="detail-row"><span>Статус оплати:</span> <b>{{ getPaymentLabel(job.payment_status) }}</b></div>
+        <div class="detail-row" v-if="job.paid_amount > 0"><span>Сплачено:</span> <b>{{ job.paid_amount }} {{ job.payment_currency }}</b></div>
+        <div class="detail-row" v-if="job.balance_due > 0"><span>Залишок:</span> <b>{{ job.balance_due }} {{ job.payment_currency }}</b></div>
+      </div>
+
+      <div class="detail-section">
+        <h4 class="section-title">Інформація</h4>
         <div class="detail-row"><span>Створено:</span> <b>{{ formatDate(job.created_at) }}</b></div>
         <div class="detail-row" v-if="job.updated_at"><span>Останнє оновлення:</span> <b>{{ formatDate(job.updated_at) }}</b></div>
       </div>
 
       <div class="modal-actions">
+        <BaseButton v-if="job.balance_due > 0 || !job.payment_status || job.payment_status === 'unpaid'" variant="primary" @click="openPayment">Оплатити</BaseButton>
         <BaseButton variant="secondary" @click="$emit('close')">Закрити</BaseButton>
       </div>
     </div>
@@ -68,12 +77,13 @@ import BaseSelect from '@/components/ui/BaseSelect.vue'
 import { REPAIR_STATUSES, REPAIR_STATUS_LABELS } from '@/constants/repairs'
 import { formatDate } from '@/utils/formatters'
 
+const emit = defineEmits(['close', 'pay'])
+
 const props = defineProps({
   isOpen: Boolean,
   job: Object
 })
 
-defineEmits(['close'])
 const repairsStore = useRepairsStore()
 const isUpdating = ref(false)
 
@@ -85,12 +95,25 @@ const statusOptions = computed(() => {
 })
 
 const changeStatus = async (newStatus) => {
-  if (newStatus === props.job.status) return
-
+  if (!props.job || newStatus === props.job.status) return
   isUpdating.value = true
-  await repairsStore.updateJobStatus(props.job.id, newStatus)
-  isUpdating.value = false
+  try {
+    await repairsStore.updateJobStatus(props.job.id, newStatus)
+  } finally {
+    isUpdating.value = false
+  }
+}
 
+const getPaymentLabel = (status) => {
+  switch (status) {
+    case 'paid': return 'Оплачено'
+    case 'partial': return 'Частково'
+    default: return 'Не оплачено'
+  }
+}
+
+const openPayment = () => {
+  emit('pay', props.job)
 }
 </script>
 
