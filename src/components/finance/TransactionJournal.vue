@@ -50,10 +50,24 @@
             <td class="text-right font-bold text-amount" :class="['expense', 'refund'].includes(tx.transaction_type) ? 'amt-negative' : 'amt-positive'">
               {{ ['expense', 'refund'].includes(tx.transaction_type) ? '-' : '+' }}{{ formatCurrency(tx.amount, tx.currency || 'UAH') }}
             </td>
-            <td class="font-medium" :class="tx.order ? 'text-order-id' : 'text-muted'">
-              <template v-if="tx.order">Замовлення #{{ tx.order }}</template>
-              <template v-else-if="tx.comment">{{ tx.comment }}</template>
-              <template v-else>—</template>
+            <td class="font-medium">
+              <div v-if="tx.source_document" class="text-order-id">
+                <template v-if="tx.source_document.type === 'repair'">Ремонт</template>
+                <template v-else-if="tx.source_document.type === 'purchase'">Закупівля</template>
+                <template v-else>Замовлення</template>
+                #{{ tx.source_document.id }}
+              </div>
+              <div v-else-if="tx.order" class="text-order-id">
+                Замовлення #{{ tx.order }}
+              </div>
+              <div v-else-if="tx.comment" class="text-muted">
+                {{ tx.comment }}
+              </div>
+              <div v-else class="text-muted">—</div>
+
+              <div v-if="tx.counterparty" class="text-sm text-primary mt-1">
+                {{ tx.counterparty.name }}
+              </div>
             </td>
           </tr>
           <tr v-if="filteredTransactions.length === 0">
