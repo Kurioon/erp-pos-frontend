@@ -12,29 +12,55 @@
       </div>
 
       <transition-group name="list" tag="div" class="cart-list-wrapper" v-else>
-        <div v-for="item in cartStore.items" :key="item.id" class="cart-item">
-          <span class="item-title">{{ item.title }}</span>
+        <div v-for="item in cartStore.items" :key="item.id" class="cart-item-container">
+          <div class="cart-item">
+            <div class="item-main-info">
+              <span class="item-title">{{ item.title }}</span>
+              <div class="item-discount-controls">
+                <select v-model="item.discount_type" class="discount-type-select">
+                  <option value="amount">₴</option>
+                  <option value="percent">%</option>
+                </select>
+                <input type="number" v-model.number="item.discount_value" min="0" class="discount-val-input" placeholder="0" />
+              </div>
+            </div>
 
-          <div class="item-controls">
-            <button
-              @click="cartStore.updateItemQuantity(item.id, item.qty - 1)"
-              aria-label="Зменшити кількість"
-            >−</button>
-            <span class="qty">{{ item.qty }}</span>
-            <button
-              @click="cartStore.updateItemQuantity(item.id, item.qty + 1)"
-              :disabled="item.qty >= item.stock"
-              aria-label="Збільшити кількість"
-            >+</button>
+            <div class="item-controls">
+              <button
+                @click="cartStore.updateItemQuantity(item.id, item.qty - 1)"
+                aria-label="Зменшити кількість"
+              >−</button>
+              <span class="qty">{{ item.qty }}</span>
+              <button
+                @click="cartStore.updateItemQuantity(item.id, item.qty + 1)"
+                :disabled="item.qty >= item.stock"
+                aria-label="Збільшити кількість"
+              >+</button>
+            </div>
+            
+            <div class="item-totals">
+              <span class="item-base-price" v-if="item.discount_value > 0">{{ formatCurrency(getItemPrice(item) * item.qty, cartStore.currency) }}</span>
+              <span class="item-total">{{ formatCurrency(getItemFinalPrice(item) * item.qty, cartStore.currency) }}</span>
+            </div>
           </div>
-          <span class="item-total">{{ formatCurrency(getItemPrice(item) * item.qty, cartStore.currency) }}</span>
         </div>
       </transition-group>
     </div>
 
-    <div class="checkout-panel">
-      <div class="summary-row total-row">
-        <span class="summary-label">Разом</span>
+      <div class="checkout-panel">
+        <div class="order-discount-section">
+          <label class="group-label">Знижка на чек</label>
+          <div class="order-discount-controls">
+            <select v-model="cartStore.cartDiscountType" class="discount-type-select">
+              <option value="amount">₴</option>
+              <option value="percent">%</option>
+            </select>
+            <input type="number" v-model.number="cartStore.cartDiscountValue" min="0" class="discount-val-input" placeholder="Сума знижки..." />
+          </div>
+        </div>
+
+        <div class="summary-row total-row">
+          <span class="summary-label">Разом</span>
         <strong>{{ formatCurrency(cartStore.totalAmount, cartStore.currency) }}</strong>
       </div>
 
@@ -164,6 +190,17 @@ const getItemPrice = (item) => {
   return Number(item.price)
 }
 
+const getItemFinalPrice = (item) => {
+  const basePrice = getItemPrice(item)
+  let discount = 0
+  if (item.discount_type === 'percent') {
+    discount = basePrice * (Number(item.discount_value) / 100)
+  } else if (item.discount_type === 'amount') {
+    discount = Number(item.discount_value)
+  }
+  return Math.max(0, basePrice - discount)
+}
+
 const preventNonDigits = (event) => {
   const allowedKeys = ['Backspace', 'Tab', 'ArrowLeft', 'ArrowRight', 'Delete', 'Enter', 'Home', 'End']
   if (event.ctrlKey || event.metaKey || allowedKeys.includes(event.key) || event.key.startsWith('F')) {
@@ -211,8 +248,10 @@ const executeCheckout = async () => {
   try {
     const paymentAmount = paymentType.value === 'full' ? cartStore.totalAmount : cartStore.prepayAmount
 
+    const payloadData = cartStore.getOrderPayload()
+
     const payload = {
-      ...cartStore.getOrderPayload(),
+      ...payloadData,
       prepay_amount: 0,
       balance_due: cartStore.totalAmount,
       status: 'draft',
@@ -232,13 +271,24 @@ const executeCheckout = async () => {
 
     await cartStore.fetchCashboxes()
 
+    const itemsForReceipt = payloadData.items.map((pi) => {
+      const originalItem = cartStore.items.find(i => i.id === pi.product)
+      return {
+        ...pi,
+        title: originalItem?.title || originalItem?.name || 'Товар'
+      }
+    })
+
     lastCompletedOrder.value = {
       id: newOrderId,
-      items: [...cartStore.items],
+      items: itemsForReceipt,
       totalAmount: cartStore.totalAmount,
       prepayAmount: paymentAmount,
       debtAmount: cartStore.totalAmount - paymentAmount,
-      commentTtn: cartStore.commentTtn
+      commentTtn: cartStore.commentTtn,
+      discount_amount: payloadData.discount_amount,
+      discount_value: payloadData.discount_value,
+      discount_type: payloadData.discount_type
     }
 
     showReceiptModal.value = true
