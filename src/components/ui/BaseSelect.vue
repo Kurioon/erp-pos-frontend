@@ -12,7 +12,7 @@
       :aria-invalid="!!error"
       role="combobox"
       @click="toggleDropdown"
-      @keydown.enter.prevent="toggleDropdown"
+      @keydown.enter.prevent="handleEnter"
       @keydown.space.prevent="toggleDropdown"
       @keydown.esc.prevent="closeDropdown"
       @keydown.down.prevent="navigateOptions(1)"
@@ -129,6 +129,14 @@ const toggleDropdown = () => {
       searchQuery.value = ''
       emit('search', '')
     }
+  }
+}
+
+const handleEnter = () => {
+  if (isOpen.value && focusedIndex.value !== -1 && props.options[focusedIndex.value]) {
+    selectOption(props.options[focusedIndex.value])
+  } else {
+    toggleDropdown()
   }
 }
 

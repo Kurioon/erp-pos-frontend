@@ -54,10 +54,11 @@
                       placeholder="Пошук товару..." 
                       class="dropdown-search-input"
                     />
-                    <select v-model="filters.category" @change="onCategoryChange" class="dropdown-category-select">
-                      <option value="">Всі категорії</option>
-                      <option v-for="c in categoriesStore.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </select>
+                    <BaseSelect 
+                      v-model="filters.category" 
+                      :options="purchaseCategoryOptions" 
+                      @change="onCategoryChange" 
+                    />
                   </div>
                 </template>
               </BaseSelect>
@@ -147,6 +148,14 @@ const onSearchInput = () => {
 const onCategoryChange = () => {
   cartStore.fetchProducts(1, filters.value)
 }
+
+const purchaseCategoryOptions = computed(() => {
+  const opts = [{ value: '', label: 'Всі категорії' }]
+  categoriesStore.categories.forEach(c => {
+    opts.push({ value: c.id, label: c.name })
+  })
+  return opts
+})
 
 const isProductModalOpen = ref(false)
 const targetItemRow = ref(null)

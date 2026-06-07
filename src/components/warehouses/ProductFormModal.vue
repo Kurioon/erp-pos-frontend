@@ -36,11 +36,11 @@
         </div>
         <div class="form-group currency-select-group">
           <label class="form-label">Валюта</label>
-          <select v-model="form.base_currency" class="custom-select">
-            <option value="UAH">₴ (Гривня)</option>
-            <option value="USD">$ (Долар США)</option>
-            <option value="EUR">€ (Євро)</option>
-          </select>
+          <BaseSelect v-model="form.base_currency" :options="[
+            { value: 'UAH', label: '₴ (Гривня)' },
+            { value: 'USD', label: '$ (Долар США)' },
+            { value: 'EUR', label: '€ (Євро)' }
+          ]" />
         </div>
       </div>
       
@@ -186,7 +186,7 @@ const submitForm = async () => {
 </script>
 
 <style scoped>
-.form-wrapper { display: flex; flex-direction: column; gap: 16px; min-width: 380px; max-width: 100%; }
+.form-wrapper { display: flex; flex-direction: column; gap: 16px; width: 100%; }
 .form-group { display: flex; flex-direction: column; gap: 6px; }
 .form-label { font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; }
 .form-row-2 { display: flex; gap: 16px; }
@@ -229,4 +229,11 @@ const submitForm = async () => {
 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
 
 .api-error-msg { background: #fef2f2; color: #dc2626; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 500; border: 1px solid #fca5a5; }
+
+@media (max-width: 480px) {
+  .form-row-2 { flex-direction: column; gap: 16px; }
+  .modal-actions { flex-direction: column-reverse; align-items: stretch; }
+  .modal-actions button { width: 100%; margin: 0; }
+  .new-category-inline { flex-direction: column; align-items: stretch; }
+}
 </style>
