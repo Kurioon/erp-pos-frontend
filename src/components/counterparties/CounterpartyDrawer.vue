@@ -93,12 +93,12 @@
                 <tr v-else-if="orders.length === 0">
                   <td colspan="5" class="text-center py-2 empty-text">Немає замовлень</td>
                 </tr>
-                <tr v-else v-for="order in orders" :key="order.id">
+                <tr v-else v-for="order in orders" :key="order.id" @click="openOrderDetails(order)" class="clickable-row">
                   <td>{{ order.id }}</td>
                   <td>{{ formatDate(order.created_at) }}</td>
                   <td>{{ formatCurrency(order.total_amount) }}</td>
                   <td :class="{'text-danger font-medium': order.balance_due > 0}">{{ formatCurrency(order.balance_due || 0) }}</td>
-                  <td><BaseStatusBadge :status="order.status === 'paid' ? 'success' : order.status === 'partial' ? 'warning' : 'default'" :text="order.status" /></td>
+                  <td><BaseStatusBadge :status="order.status === 'paid' ? 'success' : order.status === 'partial' ? 'warning' : 'default'" :text="getOrderStatusLabel(order.status)" /></td>
                 </tr>
               </tbody>
             </table>
@@ -124,10 +124,10 @@
                 <tr v-else-if="serviceJobs.length === 0">
                   <td colspan="4" class="text-center py-2 empty-text">Немає ремонтів</td>
                 </tr>
-                <tr v-else v-for="job in serviceJobs" :key="job.id">
+                <tr v-else v-for="job in serviceJobs" :key="job.id" @click="openRepairDetails(job)" class="clickable-row">
                   <td>{{ job.id }}</td>
                   <td>{{ job.device_name }}</td>
-                  <td><BaseStatusBadge status="info" :text="job.status" /></td>
+                  <td><BaseStatusBadge status="info" :text="getJobStatusLabel(job.status)" /></td>
                   <td>{{ formatCurrency(job.price) }}</td>
                 </tr>
               </tbody>
@@ -156,27 +156,34 @@
             <BaseButton class="btn-sm" @click="openPurchaseModal">+ Нова закупівля</BaseButton>
           </div>
           <div class="table-container">
-            <table class="data-table">
+            <table class="nested-table">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Дата</th>
-                  <th>Сума</th>
-                  <th>Статус</th>
+                  <th>ID</th>
+                  <th>ДАТА</th>
+                  <th>СУМА</th>
+                  <th>СТАТУС</th>
+                  <th class="text-right">ДІЇ</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="isLoadingPurchases">
-                  <td colspan="4" class="text-center py-2">Завантаження...</td>
+                  <td colspan="5" class="text-center py-2">Завантаження...</td>
                 </tr>
                 <tr v-else-if="purchases.length === 0">
-                  <td colspan="4" class="text-center py-2 empty-text">Немає закупівель</td>
+                  <td colspan="5" class="text-center py-2 empty-text">Немає закупівель</td>
                 </tr>
-                <tr v-else v-for="purchase in purchases" :key="purchase.id">
+                <tr v-else v-for="purchase in purchases" :key="purchase.id" @click="openPurchaseView(purchase)" class="clickable-row">
                   <td>{{ purchase.id }}</td>
                   <td>{{ formatDate(purchase.created_at) }}</td>
                   <td>{{ formatCurrency(purchase.total_amount) }}</td>
-                  <td><BaseStatusBadge status="default" :text="purchase.status" /></td>
+                  <td><BaseStatusBadge status="default" :text="getOrderStatusLabel(purchase.status)" /></td>
+                  <td class="text-right actions-col" @click.stop>
+                    <div class="actions-wrapper" v-if="['draft', 'чернетка'].includes(String(purchase.status).toLowerCase())">
+                      <button class="action-btn edit-btn" @click="openPurchaseView(purchase)">Редаг.</button>
+                      <button class="action-btn approve-btn" @click="approvePurchase(purchase.id)">Затв.</button>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -194,6 +201,49 @@
     @close="isPurchaseModalOpen = false"
     @save="handlePurchaseSubmit"
   />
+
+  <PendingOrderDetailsModal
+    v-if="isOrderModalOpen"
+    :is-open="isOrderModalOpen"
+    :order="selectedOrder"
+    @close="isOrderModalOpen = false"
+    @pay="handleOrderPay"
+  />
+
+  <RepairDetailsModal
+    v-if="isRepairModalOpen"
+    :is-open="isRepairModalOpen"
+    :job="selectedRepair"
+    @close="isRepairModalOpen = false"
+    @pay="handleRepairPay"
+    @refresh="loadData"
+  />
+
+  <PurchaseFormModal
+    v-if="isPurchaseViewOpen"
+    :is-open="isPurchaseViewOpen"
+    :edit-mode="true"
+    :order-data="selectedPurchase"
+    @close="isPurchaseViewOpen = false"
+    @save="handlePurchaseUpdate"
+  />
+
+  <ConfirmModal
+    :is-open="isConfirmOpen"
+    title="Оплатити борг"
+    :message="confirmMessage"
+    confirmText="Сплатити"
+    @close="isConfirmOpen = false"
+    @confirm="executeOrderPay"
+  />
+
+  <RepairPaymentModal
+    v-if="isRepairPaymentOpen"
+    :is-open="isRepairPaymentOpen"
+    :job-data="selectedRepair"
+    @close="isRepairPaymentOpen = false"
+    @paid="handleRepairPaid"
+  />
 </template>
 
 <script setup>
@@ -203,7 +253,13 @@ import { formatCurrency, formatDate } from '@/utils/formatters'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
+import PendingOrderDetailsModal from '@/components/finance/PendingOrderDetailsModal.vue'
+import RepairDetailsModal from '@/components/repairs/RepairDetailsModal.vue'
+import RepairPaymentModal from '@/components/repairs/RepairPaymentModal.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import api from '@/api/axios'
+import { useFinanceStore } from '@/stores/finance'
+import { useCartStore } from '@/stores/pos'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -215,6 +271,8 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'edit', 'delete', 'new-purchase'])
 const store = useCounterpartiesStore()
+const financeStore = useFinanceStore()
+const cartStore = useCartStore()
 
 const isEditingNotes = ref(false)
 const editNotes = ref('')
@@ -230,8 +288,90 @@ const isLoadingPurchases = ref(false)
 
 const isPurchaseModalOpen = ref(false)
 
+const isOrderModalOpen = ref(false)
+const selectedOrder = ref(null)
+
+const isRepairModalOpen = ref(false)
+const selectedRepair = ref(null)
+
+const isPurchaseViewOpen = ref(false)
+const selectedPurchase = ref(null)
+
+const isConfirmOpen = ref(false)
+const confirmMessage = ref('')
+const orderToPay = ref(null)
+const isRepairPaymentOpen = ref(false)
+
 const openPurchaseModal = () => {
   isPurchaseModalOpen.value = true
+}
+
+const openOrderDetails = (order) => {
+  selectedOrder.value = order
+  isOrderModalOpen.value = true
+}
+
+const openRepairDetails = (job) => {
+  selectedRepair.value = job
+  isRepairModalOpen.value = true
+}
+
+const openPurchaseView = (purchase) => {
+  selectedPurchase.value = purchase
+  isPurchaseViewOpen.value = true
+}
+
+const handleOrderPay = async (order) => {
+  isOrderModalOpen.value = false
+  if (cartStore.availableCashboxes.length === 0) {
+    await cartStore.fetchCashboxes()
+  }
+  const cashboxId = order.cash_register || cartStore.availableCashboxes[0]?.id
+  if (!cashboxId) {
+    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Не обрано касу для оплати', type: 'error' } }))
+    return
+  }
+  orderToPay.value = { order, cashboxId }
+  confirmMessage.value = `Ви підтверджуєте прийом оплати <strong>${formatCurrency(order.balance_due, order.currency)}</strong> за замовленням <strong>#${order.id}</strong>?`
+  isConfirmOpen.value = true
+}
+
+const executeOrderPay = async () => {
+  if (!orderToPay.value) return
+  isConfirmOpen.value = false
+  try {
+    await financeStore.submitPrepay(orderToPay.value.order.id, orderToPay.value.order.balance_due, orderToPay.value.cashboxId)
+    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Борг успішно оплачено', type: 'success' } }))
+    await loadData()
+  } catch (error) {
+    console.error('Помилка оплати:', error)
+  }
+}
+
+const handleRepairPay = (job) => {
+  isRepairModalOpen.value = false
+  selectedRepair.value = job
+  isRepairPaymentOpen.value = true
+}
+
+const handleRepairPaid = () => {
+  window.dispatchEvent(new CustomEvent('api-error', { detail: { message: 'Оплата за ремонт пройшла успішно', type: 'success' } }))
+  loadData()
+}
+
+const handlePurchaseUpdate = async (payload) => {
+  isPurchaseViewOpen.value = false
+  loadData()
+}
+
+const approvePurchase = async (id) => {
+  try {
+    await api.post(`/orders/${id}/approve/`)
+    window.dispatchEvent(new CustomEvent('app-success', { detail: { message: 'Закупівлю затверджено!' } }))
+    await loadData()
+  } catch (e) {
+    console.error('Помилка затвердження', e)
+  }
 }
 
 const handlePurchaseSubmit = async (payload) => {
@@ -328,9 +468,29 @@ const getRoleLabel = (role) => {
   switch (role) {
     case 'buyer': return 'Покупець'
     case 'supplier': return 'Постачальник'
-    case 'both': return 'Обидва'
-    default: return 'Невідомо'
+    case 'both': return 'Універсальний'
+    default: return role
   }
+}
+
+const getOrderStatusLabel = (status) => {
+  const map = {
+    draft: 'Чернетка',
+    partial: 'Частково оплачено',
+    paid: 'Оплачено',
+    returned: 'Повернено',
+    cancelled: 'Скасовано'
+  }
+  return map[status] || status
+}
+
+const getJobStatusLabel = (status) => {
+  const map = {
+    in_progress: 'В роботі',
+    completed: 'Готово',
+    cancelled: 'Скасовано'
+  }
+  return map[status] || status
 }
 </script>
 
@@ -545,6 +705,18 @@ const getRoleLabel = (role) => {
   text-align: left;
 }
 
+.data-table th, .data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.clickable-row:hover {
+  background-color: #f1f5f9;
+}
+
 .data-table th, .data-table td {
   padding: 10px 16px;
   border-bottom: 1px solid #e2e8f0;
@@ -561,4 +733,13 @@ const getRoleLabel = (role) => {
   padding: 4px 10px;
   font-size: 0.85rem;
 }
+
+.actions-col { width: 140px; padding-right: 12px; }
+.actions-wrapper { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.action-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.edit-btn { background: transparent; border: 1px solid #cbd5e1; color: #475569; }
+.edit-btn:hover { background-color: #f1f5f9; color: #0f172a; }
+.approve-btn { background-color: #2563eb; border: 1px solid #2563eb; color: white; }
+.approve-btn:hover:not(:disabled) { background-color: #1d4ed8; }
+
 </style>

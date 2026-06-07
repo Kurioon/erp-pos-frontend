@@ -164,8 +164,8 @@ watch(() => formData.value.counterparty, (newId) => {
   if (newId) {
     const cp = counterpartiesStore.counterparties.find(c => c.id === newId)
     if (cp) {
-      if (!formData.value.customer_name) formData.value.customer_name = cp.name
-      if (formData.value.customer_phone === '+380' && cp.phone) formData.value.customer_phone = cp.phone
+      formData.value.customer_name = cp.name || ''
+      formData.value.customer_phone = cp.phone || '+380'
     }
   }
 })

@@ -67,21 +67,32 @@ export const useFinanceStore = defineStore('finance', () => {
   const submitPrepay = async (transaction, amount, cashboxId) => {
     isSubmittingPrepay.value = true
     try {
-      const source = transaction.source_document || {}
-      
-      if (source.type === 'repair') {
-        await api.post(`/warehouses/service-jobs/${source.id}/payment/`, {
-          amount: Number(amount),
-          cash_register: cashboxId,
-          currency: transaction.currency || 'UAH'
-        })
+      let endpoint = ''
+      let currency = 'UAH'
+
+      if (typeof transaction === 'object' && transaction !== null) {
+        currency = transaction.currency || 'UAH'
+        const source = transaction.source_document || {}
+        if (source.type === 'repair') {
+          endpoint = `/warehouses/service-jobs/${source.id}/payment/`
+        } else if (source.id) {
+          endpoint = `/orders/${source.id}/prepay/`
+        } else if (transaction.id) {
+          endpoint = `/orders/${transaction.id}/prepay/`
+        }
       } else {
-        await api.post(`/orders/${source.id}/prepay/`, {
-          amount: Number(amount),
-          cash_register: cashboxId,
-          currency: transaction.currency || 'UAH'
-        })
+        endpoint = `/orders/${transaction}/prepay/`
       }
+
+      if (!endpoint) {
+        throw new Error('Invalid transaction or order ID')
+      }
+
+      await api.post(endpoint, {
+        amount: Number(amount),
+        cash_register: cashboxId,
+        currency: currency
+      })
 
       window.dispatchEvent(
         new CustomEvent('app-success', {

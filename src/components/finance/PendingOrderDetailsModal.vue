@@ -1,43 +1,43 @@
 <template>
-  <BaseModal :is-open="isOpen" @close="$emit('close')" title="Деталі неоплаченого замовлення">
+  <BaseModal :is-open="isOpen" @close="$emit('close')" title="Деталі документа">
     <div v-if="order" class="details-grid">
       <div class="detail-row">
-        <span>Документ-джерело:</span>
+        <span>Документ-основа:</span>
         <b>
-          <template v-if="order.source_document?.type === 'repair'">Ремонт</template>
-          <template v-else-if="order.source_document?.type === 'purchase'">Закупівля</template>
+          <template v-if="sourceDocType === 'repair'">Ремонт</template>
+          <template v-else-if="sourceDocType === 'purchase'">Закупівля</template>
           <template v-else>Замовлення</template>
-          #{{ order.source_document?.id || '?' }}
+          #{{ sourceDocId || '?' }}
         </b>
       </div>
-      <div v-if="order.counterparty" class="detail-row">
-        <span>Боржник:</span>
+      <div v-if="counterparty" class="detail-row">
+        <span>Клієнт:</span>
         <b>
-          <a href="#" @click.prevent="openCounterpartyDrawer(order.counterparty.id)" class="text-link font-bold">
-            {{ order.counterparty.name }}
+          <a href="#" @click.prevent="openCounterpartyDrawer(counterparty.id)" class="text-link font-bold">
+            {{ counterparty.name }}
           </a> 
-          <span class="text-muted">({{ order.counterparty.phone }})</span>
+          <span class="text-muted">({{ counterparty.phone }})</span>
         </b>
       </div>
       <div class="detail-row">
-        <span>Дата фіксації боргу:</span>
-        <b>{{ formatDate(order.timestamp || new Date()) }}</b>
+        <span>Дата:</span>
+        <b>{{ formatDate(order.timestamp || order.created_at || new Date()) }}</b>
       </div>
       <div class="detail-row">
-        <span>Загальна сума джерела:</span>
-        <b>{{ formatCurrency(order.source_document?.total_amount, order.currency) }}</b>
+        <span>Загальна сума документа:</span>
+        <b>{{ formatCurrency(totalAmount, order.currency) }}</b>
       </div>
       <div class="detail-row">
-        <span>Вже сплачено (по джерелу):</span>
-        <b class="amt-positive">{{ formatCurrency((order.source_document?.total_amount || 0) - order.amount, order.currency) }}</b>
+        <span>Вже сплачено:</span>
+        <b class="amt-positive">{{ formatCurrency(paidAmount, order.currency) }}</b>
       </div>
       <div class="detail-row highlight-row">
-        <span>Поточний залишок до оплати:</span>
-        <b class="amt-negative">{{ formatCurrency(order.amount, order.currency) }}</b>
+        <span>Залишок до сплати (Борг):</span>
+        <b class="amt-negative">{{ formatCurrency(debtAmount, order.currency) }}</b>
       </div>
 
       <div v-if="orderData && orderData.items && orderData.items.length > 0" class="items-section mt-4">
-        <p class="section-title">Позиції в документі:</p>
+        <p class="section-title">Позиції в замовленні:</p>
         <table class="items-table">
           <tbody>
             <tr v-for="(item, idx) in orderData.items" :key="idx">
@@ -53,8 +53,12 @@
         </table>
       </div>
       
-      <div v-if="order.order && orderData === null && isLoadingOrder" class="loading-order">
+      <div v-if="isLoadingOrder" class="loading-order">
         <span class="text-muted">Завантаження позицій...</span>
+      </div>
+
+      <div class="modal-actions" v-if="debtAmount > 0">
+        <BaseButton variant="primary" @click="$emit('pay', order)" style="width: 100%; margin-top: 10px;">Оплатити борг</BaseButton>
       </div>
     </div>
 
@@ -68,8 +72,9 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import ProductDetailsDrawer from '@/components/warehouses/ProductDetailsDrawer.vue'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { useCounterpartiesStore } from '@/stores/counterparties'
@@ -79,16 +84,23 @@ const props = defineProps({
   isOpen: Boolean,
   order: Object
 })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'pay'])
 
 const counterpartiesStore = useCounterpartiesStore()
 const openCounterpartyDrawer = (id) => {
   counterpartiesStore.openGlobalDrawer(id)
 }
 
+const sourceDocType = computed(() => props.order?.source_document?.type || 'order')
+const sourceDocId = computed(() => props.order?.source_document?.id || props.order?.id)
+const counterparty = computed(() => props.order?.counterparty || null)
+
+const totalAmount = computed(() => Number(props.order?.source_document?.total_amount || props.order?.total_amount || 0))
+const debtAmount = computed(() => Number(props.order?.balance_due !== undefined ? props.order.balance_due : (props.order?.amount || 0)))
+const paidAmount = computed(() => totalAmount.value - debtAmount.value)
+
 const orderData = ref(null)
 const isLoadingOrder = ref(false)
-
 const selectedProduct = ref(null)
 
 const openProductDrawer = (item) => {
@@ -96,11 +108,12 @@ const openProductDrawer = (item) => {
 }
 
 watch(() => props.isOpen, async (isOpen) => {
-  if (isOpen && props.order?.order) { // props.order is actually the transaction
+  const orderId = props.order?.order || props.order?.id
+  if (isOpen && orderId && sourceDocType.value === 'order') {
     isLoadingOrder.value = true
     orderData.value = null
     try {
-      const { data } = await api.get(`/orders/${props.order.order}/`)
+      const { data } = await api.get(`/orders/${orderId}/`)
       orderData.value = data
     } catch (e) {
       console.error('Error fetching order details:', e)

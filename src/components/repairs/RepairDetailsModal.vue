@@ -77,7 +77,7 @@ import BaseSelect from '@/components/ui/BaseSelect.vue'
 import { REPAIR_STATUSES, REPAIR_STATUS_LABELS } from '@/constants/repairs'
 import { formatDate } from '@/utils/formatters'
 
-const emit = defineEmits(['close', 'pay'])
+const emit = defineEmits(['close', 'pay', 'refresh'])
 
 const props = defineProps({
   isOpen: Boolean,
@@ -99,6 +99,7 @@ const changeStatus = async (newStatus) => {
   isUpdating.value = true
   try {
     await repairsStore.updateJobStatus(props.job.id, newStatus)
+    emit('refresh')
   } catch (error) {
     const data = error.response?.data
     let msg = 'Дію відхилено. Перевірте статус оплати або інші умови.'

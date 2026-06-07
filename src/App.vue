@@ -30,4 +30,16 @@ body {
 * {
   box-sizing: border-box;
 }
+
+.text-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.text-link:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
 </style>
