@@ -38,6 +38,7 @@ import IconBox from '@/components/icons/IconBox.vue'
 import IconProcurement from '@/components/icons/IconProcurement.vue'
 import IconRepair from '@/components/icons/IconRepair.vue'
 import IconFinance from '@/components/icons/IconFinance.vue'
+import IconLock from '@/components/icons/IconLock.vue' // Reusing a lock icon or similar for admin
 
 defineProps({
   isMobileOpen: {
@@ -55,7 +56,8 @@ const menuItems = [
   { name: 'Склади', path: '/warehouses', icon: IconBox },
   { name: 'Закупівлі', path: '/procurement', icon: IconProcurement },
   { name: 'Ремонти', path: '/repairs', icon: IconRepair },
-  { name: 'Фінанси', path: '/finance', icon: IconFinance }
+  { name: 'Фінанси', path: '/finance', icon: IconFinance },
+  { name: 'Співробітники', path: '/admin', icon: IconLock }
 ]
 
 const filteredMenuItems = computed(() => {

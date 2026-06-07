@@ -11,25 +11,31 @@ export const useFinanceStore = defineStore('finance', () => {
   const pagination = ref({ count: 0, next: null, previous: null })
 
   const currentBalance = computed(() => {
-    return transactions.value.reduce((sum, t) => sum + Number(t.amount), 0)
+    return totalIncome.value - totalExpense.value
   })
 
   const totalIncome = computed(() => {
+    const incomeTypes = ['prepay', 'payment', 'sale', 'income']
     return transactions.value
-      .filter((t) => Number(t.amount) > 0)
-      .reduce((sum, t) => sum + Number(t.amount), 0)
+      .filter((t) => incomeTypes.includes(t.transaction_type))
+      .reduce((sum, t) => sum + Number(t.amount_uah || t.amount), 0)
   })
 
   const totalExpense = computed(() => {
+    const expenseTypes = ['refund', 'return', 'expense', 'purchase']
     return transactions.value
-      .filter((t) => Number(t.amount) < 0)
-      .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0)
+      .filter((t) => expenseTypes.includes(t.transaction_type))
+      .reduce((sum, t) => sum + Number(t.amount_uah || t.amount), 0)
   })
 
-  const fetchTransactions = async (page = 1) => {
+  const fetchTransactions = async (page = 1, filters = {}) => {
     isLoading.value = true
     try {
-      const response = await api.get(`/transactions/?page=${page}`)
+      let url = `/transactions/?page=${page}`
+      if (filters.date) {
+        url += `&date=${filters.date}`
+      }
+      const response = await api.get(url)
       transactions.value = response.data.results || []
 
       pagination.value = {

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { USER_ROLES } from '@/constants/roles'
 import api from '@/api/axios'
@@ -51,5 +51,9 @@ export const useAuthStore = defineStore('auth', () => {
     router.push('/login')
   }
 
-  return { token, refreshToken, user, isLoading, errorMessage, login, logout }
+  const isAdmin = computed(() => {
+    return user.value?.role === USER_ROLES.ADMIN
+  })
+
+  return { token, refreshToken, user, isLoading, errorMessage, isAdmin, login, logout }
 })

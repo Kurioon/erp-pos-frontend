@@ -8,19 +8,40 @@ export const useCartStore = defineStore('pos', () => {
   const commentTtn = ref('')
   const currency = ref('UAH')
 
+  const cartDiscountType = ref('amount')
+  const cartDiscountValue = ref(0)
+
   const availableCashboxes = ref([])
   const activeCashbox = ref(null)
   const products = ref([])
   const isLoading = ref(false)
 
   const totalAmount = computed(() => {
-    return items.value.reduce((sum, item) => {
+    const itemsTotal = items.value.reduce((sum, item) => {
       let currentPrice = 0
       if (currency.value === 'UAH') currentPrice = Number(item.price_uah || item.price)
       else if (currency.value === 'USD') currentPrice = Number(item.price_usd || 0)
       else if (currency.value === 'EUR') currentPrice = Number(item.price_eur || 0)
-      return sum + (currentPrice * item.qty)
+      
+      let itemDiscountAmount = 0
+      if (item.discount_type === 'percent') {
+        itemDiscountAmount = currentPrice * (Number(item.discount_value) / 100)
+      } else if (item.discount_type === 'amount') {
+        itemDiscountAmount = Number(item.discount_value)
+      }
+      
+      const itemFinalPrice = Math.max(0, currentPrice - itemDiscountAmount)
+      return sum + (itemFinalPrice * item.qty)
     }, 0)
+
+    let finalTotal = itemsTotal
+    if (cartDiscountType.value === 'percent') {
+      finalTotal -= itemsTotal * (Number(cartDiscountValue.value) / 100)
+    } else if (cartDiscountType.value === 'amount') {
+      finalTotal -= Number(cartDiscountValue.value)
+    }
+    
+    return Math.max(0, finalTotal)
   })
   const balanceDue = computed(() => Math.max(0, totalAmount.value - prepayAmount.value))
   const orderStatus = computed(() => {
@@ -51,16 +72,23 @@ export const useCartStore = defineStore('pos', () => {
     isLoading.value = true
     try {
       const stocksData = await fetchAllStocks()
-      
-      const queryParams = { page }
-      Object.entries(params).forEach(([k, v]) => {
-        if (v !== '' && v !== null && v !== undefined) queryParams[k] = v
-      })
-      
-      const productsResponse = await api.get('/products/', { params: queryParams })
-      const fetchedProducts = productsResponse.data.results || []
 
-      products.value = fetchedProducts.map((product) => {
+      const filterParams = {}
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== '' && v !== null && v !== undefined) filterParams[k] = v
+      })
+
+      let allProducts = []
+      let currentPage = 1
+      while (true) {
+        const { data } = await api.get('/products/', { params: { ...filterParams, page: currentPage } })
+        const results = data.results || []
+        allProducts = allProducts.concat(results)
+        if (!data.next) break
+        currentPage++
+      }
+
+      products.value = allProducts.map((product) => {
         const totalStock = stocksData
           .filter((s) => Number(s.nomenclature) === Number(product.id))
           .reduce((sum, stock) => sum + (Number(stock.quantity) || 0), 0)
@@ -105,6 +133,8 @@ export const useCartStore = defineStore('pos', () => {
         price_uah: Number(product.price_uah || product.sale_price),
         price_usd: Number(product.price_usd || 0),
         price_eur: Number(product.price_eur || 0),
+        discount_type: 'amount',
+        discount_value: 0,
         qty: 1 
       })
     }
@@ -123,7 +153,13 @@ export const useCartStore = defineStore('pos', () => {
     }
   }
 
-  const clearCart = () => { items.value = []; prepayAmount.value = 0; commentTtn.value = '' }
+  const clearCart = () => { 
+    items.value = []; 
+    prepayAmount.value = 0; 
+    commentTtn.value = '';
+    cartDiscountType.value = 'amount';
+    cartDiscountValue.value = 0;
+  }
 
   const getOrderPayload = () => {
     // Формуємо масив items зі зліпком ціни у вибраній валюті (для сумісності, якщо потрібно)
@@ -131,8 +167,31 @@ export const useCartStore = defineStore('pos', () => {
       let currentPrice = Number(i.price_uah || i.price)
       if (currency.value === 'USD') currentPrice = Number(i.price_usd || 0)
       if (currency.value === 'EUR') currentPrice = Number(i.price_eur || 0)
-      return { product: i.id, quantity: i.qty, price: currentPrice }
+      
+      let itemDiscountAmount = 0
+      if (i.discount_type === 'percent') {
+        itemDiscountAmount = currentPrice * (Number(i.discount_value) / 100)
+      } else if (i.discount_type === 'amount') {
+        itemDiscountAmount = Number(i.discount_value)
+      }
+
+      return { 
+        product: i.id, 
+        quantity: i.qty, 
+        price: currentPrice,
+        discount_type: i.discount_type,
+        discount_value: Number(i.discount_value),
+        discount_amount: itemDiscountAmount
+      }
     })
+
+    let orderDiscountAmount = 0
+    const itemsTotal = payloadItems.reduce((sum, item) => sum + ((item.price - item.discount_amount) * item.quantity), 0)
+    if (cartDiscountType.value === 'percent') {
+      orderDiscountAmount = itemsTotal * (Number(cartDiscountValue.value) / 100)
+    } else if (cartDiscountType.value === 'amount') {
+      orderDiscountAmount = Number(cartDiscountValue.value)
+    }
 
     return {
       items: payloadItems,
@@ -143,7 +202,10 @@ export const useCartStore = defineStore('pos', () => {
       status: 'draft',
       cash_register: activeCashbox.value?.id || null,
       currency: currency.value,
-      comment_ttn: commentTtn.value.trim()
+      comment_ttn: commentTtn.value.trim(),
+      discount_type: cartDiscountType.value,
+      discount_value: Number(cartDiscountValue.value),
+      discount_amount: orderDiscountAmount
     }
   }
 
@@ -153,6 +215,7 @@ export const useCartStore = defineStore('pos', () => {
 
   return {
     items, prepayAmount, commentTtn, currency, availableCashboxes, activeCashbox, products, isLoading,
+    cartDiscountType, cartDiscountValue,
     totalAmount, balanceDue, orderStatus, fetchCashboxes, fetchProducts, addItem, removeItem, 
     updateItemQuantity, clearCart, getOrderPayload, createCashbox, deleteCashbox, updateCashbox
   }
