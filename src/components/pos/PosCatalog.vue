@@ -10,6 +10,12 @@
       :readonly="true"
       @close="selectedProduct = null"
     />
+    <BackorderModal
+      :is-open="isBackorderOpen"
+      :product="backorderProduct"
+      @close="isBackorderOpen = false"
+      @created="onBackorderCreated"
+    />
     <div class="catalog-header">
       <FilterBar
         searchPlaceholder="Пошук (назва, артикул, штрихкод)..."
@@ -49,8 +55,19 @@
               {{ product.stock }} шт
             </span>
           </div>
-          <BaseButton class="add-btn" @click.stop="handleAdd(product)" :disabled="product.stock === 0">
+          <BaseButton
+            v-if="product.stock > 0"
+            class="add-btn"
+            @click.stop="handleAdd(product)"
+          >
             + Додати
+          </BaseButton>
+          <BaseButton
+            v-else
+            class="backorder-btn"
+            @click.stop="openBackorder(product)"
+          >
+            ⏳ Під замовлення
           </BaseButton>
         </div>
       </div>
@@ -66,6 +83,7 @@ import { useCategoriesStore } from '@/stores/categories'
 import { useWarehousesStore } from '@/stores/warehouses'
 import { formatCurrency } from '@/utils/formatters'
 import ReturnModal from '@/components/pos/ReturnModal.vue'
+import BackorderModal from '@/components/pos/BackorderModal.vue'
 import FilterBar from '@/components/ui/FilterBar.vue'
 import ProductDetailsDrawer from '@/components/warehouses/ProductDetailsDrawer.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -77,8 +95,20 @@ const warehousesStore = useWarehousesStore()
 const isReturnModalOpen = ref(false)
 const selectedProduct = ref(null)
 
+const isBackorderOpen = ref(false)
+const backorderProduct = ref(null)
+
 const openDrawer = (product) => {
   selectedProduct.value = product
+}
+
+const openBackorder = (product) => {
+  backorderProduct.value = product
+  isBackorderOpen.value = true
+}
+
+const onBackorderCreated = () => {
+  isBackorderOpen.value = false
 }
 
 const filters = ref({
@@ -282,6 +312,31 @@ const handleReturn = () => {
   color: #94a3b8;
   cursor: not-allowed;
 }
+
+.backorder-btn {
+  align-self: stretch;
+  box-sizing: border-box;
+  background: #f97316;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.backorder-btn:hover {
+  background: #ea580c;
+}
+
+/* Картка «нема в наявності» сіра, але кнопка під замовлення лишається активною */
+.out-of-stock { pointer-events: auto; }
+.out-of-stock .backorder-btn { filter: none; }
 
 @media (max-width: 1023px) {
   .products-section {

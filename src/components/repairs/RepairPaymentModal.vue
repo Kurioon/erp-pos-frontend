@@ -146,7 +146,9 @@ const handleSubmit = async () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-width: 350px;
+  /* Не ширше за модалку: на телефоні стає 100%, на десктопі — 350px */
+  min-width: min(350px, 100%);
+  width: 100%;
 }
 .job-summary {
   padding: 12px;
@@ -164,5 +166,12 @@ const handleSubmit = async () => {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 8px;
+}
+
+@media (max-width: 480px) {
+  .payment-form { min-width: 0; }
+  .form-row { grid-template-columns: 1fr; }
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions :deep(button) { width: 100%; }
 }
 </style>
