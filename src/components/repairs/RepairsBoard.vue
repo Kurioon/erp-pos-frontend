@@ -105,7 +105,21 @@ const handleDrop = async (event, newStatus) => {
   if (!jobIdStr) return
 
   const jobId = Number(jobIdStr)
-  await repairsStore.updateJobStatus(jobId, newStatus)
+  try {
+    await repairsStore.updateJobStatus(jobId, newStatus)
+  } catch (error) {
+    const data = error.response?.data
+    let msg = 'Дію відхилено. Перевірте статус оплати або інші умови.'
+    if (data && typeof data === 'object') {
+      if (data.error) msg = data.error
+      else if (data.detail) msg = data.detail
+    }
+    window.dispatchEvent(
+      new CustomEvent('api-error', {
+        detail: { message: msg, type: 'error' },
+      }),
+    )
+  }
 }
 
 const pendingJobs = computed(() => repairsStore.jobs.filter(j => j.status === REPAIR_STATUSES.PENDING))

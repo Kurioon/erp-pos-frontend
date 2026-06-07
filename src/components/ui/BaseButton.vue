@@ -43,10 +43,17 @@ defineProps({
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-.base-button:hover,
-.base-button:focus {
+.base-button:hover {
   background-color: #1d4ed8; 
+}
+
+.base-button:focus {
   outline: none;
+}
+
+.base-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.5);
+  outline-offset: 2px;
 }
 
 .base-button:disabled {

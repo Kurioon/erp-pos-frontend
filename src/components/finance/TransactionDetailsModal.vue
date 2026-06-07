@@ -5,8 +5,45 @@
       <div class="detail-row"><span>Каса:</span> <b>{{ getCashboxName(tx.cash_register) }}</b></div>
       <div class="detail-row"><span>Тип:</span> <b>{{ getTransactionLabel(tx) }}</b></div>
       <div class="detail-row"><span>Сума:</span> <b :class="Number(tx.amount) > 0 ? 'amt-positive' : 'amt-negative'">{{ formatCurrency(tx.amount, tx.currency || 'UAH') }}</b></div>
-      <div class="detail-row" v-if="tx.order"><span>Замовлення:</span> <b>#{{ tx.order }}</b></div>
+      
+      <div class="detail-row" v-if="tx.source_document">
+        <span>Документ-джерело:</span>
+        <b>
+          <template v-if="tx.source_document.type === 'repair'">Ремонт</template>
+          <template v-else-if="tx.source_document.type === 'purchase'">Закупівля</template>
+          <template v-else>Замовлення</template>
+          #{{ tx.source_document.id }}
+        </b>
+      </div>
+      <div class="detail-row" v-else-if="tx.order">
+        <span>Замовлення:</span> <b>#{{ tx.order }}</b>
+      </div>
+
+      <div class="detail-row" v-if="tx.counterparty">
+        <span>Боржник/Контрагент:</span> 
+        <a href="#" @click.prevent="openCounterpartyDrawer(tx.counterparty.id)" class="text-link font-bold">
+          {{ tx.counterparty.name }}
+        </a>
+      </div>
+
       <div class="detail-row" v-if="tx.comment"><span>Примітка:</span> <b>{{ tx.comment }}</b></div>
+
+      <div v-if="orderData && orderData.items && orderData.items.length > 0" class="items-section">
+        <p class="section-title">Позиції в документі:</p>
+        <table class="items-table">
+          <tbody>
+            <tr v-for="(item, idx) in orderData.items" :key="idx">
+              <td>
+                <a href="#" @click.prevent="openProductDrawer(item)" class="text-link item-name">
+                  {{ item.product_name || item.name || 'Невідомий товар' }}
+                </a>
+              </td>
+              <td class="text-right text-muted">{{ item.quantity || item.qty }} шт</td>
+              <td class="text-right font-bold">{{ formatCurrency(item.price, tx.currency || 'UAH') }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <!-- Action buttons -->
       <div v-if="tx.order && orderData !== null" class="actions-section">
@@ -63,6 +100,14 @@
         </div>
       </div>
     </BaseModal>
+
+    <!-- Product Drawer -->
+    <ProductDetailsDrawer
+      v-if="selectedProduct"
+      :product="selectedProduct"
+      :readonly="true"
+      @close="selectedProduct = null"
+    />
   </BaseModal>
 </template>
 
@@ -71,10 +116,12 @@ import { ref, watch } from 'vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
+import ProductDetailsDrawer from '@/components/warehouses/ProductDetailsDrawer.vue'
 import { formatCurrency, formatDate } from '@/utils/formatters'
 import { TRANSACTION_TYPE_LABELS } from '@/constants/finance'
 import { useCartStore } from '@/stores/pos'
 import { useFinanceStore } from '@/stores/finance'
+import { useCounterpartiesStore } from '@/stores/counterparties'
 import api from '@/api/axios'
 
 const props = defineProps({ isOpen: Boolean, tx: Object, getCashboxName: Function })
@@ -82,6 +129,7 @@ const emit = defineEmits(['close'])
 
 const cartStore = useCartStore()
 const financeStore = useFinanceStore()
+const counterpartiesStore = useCounterpartiesStore()
 
 const orderData = ref(null)
 const isLoadingOrder = ref(false)
@@ -90,6 +138,19 @@ const refundCashboxId = ref(null)
 const isRefunding = ref(false)
 const refundError = ref('')
 const isDownloadingReceipt = ref(false)
+
+const openCounterpartyDrawer = (id) => {
+  counterpartiesStore.openGlobalDrawer(id)
+}
+
+const selectedProduct = ref(null)
+
+const openProductDrawer = (item) => {
+  // item can be from orderData.items where product is the ID
+  // ProductDetailsDrawer expects `product` object. 
+  // It has a watcher that calls fetchDetails(props.product.id)
+  selectedProduct.value = { id: item.product, name: item.product_name }
+}
 
 const getTransactionLabel = (tx) => TRANSACTION_TYPE_LABELS[tx.transaction_type] || 'Транзакція'
 
@@ -180,6 +241,16 @@ const executeRefund = async () => {
 .amt-negative { color: #b91c1c; }
 
 .actions-section { margin-top: 8px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 8px; }
+
+.items-section { margin-top: 8px; }
+.section-title { font-size: 0.9rem; font-weight: 700; color: #475569; margin-bottom: 8px; }
+.items-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.items-table td { padding: 4px 0; border-bottom: 1px solid #f1f5f9; }
+.items-table tr:last-child td { border-bottom: none; }
+.text-link { color: #2563eb; text-decoration: none; transition: color 0.15s; }
+.text-link:hover { color: #1d4ed8; text-decoration: underline; }
+.item-name { display: block; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.font-bold { font-weight: 600; }
 
 .receipt-btn {
   width: 100%;

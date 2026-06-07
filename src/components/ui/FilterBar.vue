@@ -9,7 +9,7 @@
     <BaseSelect
       v-for="filter in filters"
       :key="filter.key"
-      v-model="filterValues[filter.key]"
+      v-model="internalFilterValues[filter.key]"
       :options="filter.options"
       :placeholder="filter.label"
       @update:modelValue="onFilterChange(filter.key, $event)"
@@ -35,19 +35,27 @@ const props = defineProps({
   modelValue: {
     type: String,
     default: ''
+  },
+  filterValues: {
+    type: Object,
+    default: () => ({})
   }
 })
 
 const emit = defineEmits(['update:search', 'update:filter', 'update:modelValue'])
 
 const searchQuery = ref(props.modelValue)
-const filterValues = ref({})
+const internalFilterValues = ref({ ...props.filterValues })
 
 watch(() => props.modelValue, (newVal) => {
   if (searchQuery.value !== newVal) {
     searchQuery.value = newVal
   }
 })
+
+watch(() => props.filterValues, (newVal) => {
+  internalFilterValues.value = { ...newVal }
+}, { deep: true })
 
 let searchTimeout = null
 

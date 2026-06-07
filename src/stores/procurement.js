@@ -199,6 +199,34 @@ export const useProcurementStore = defineStore('procurement', () => {
     }
   }
 
+  // Сценарій 2 (Backordering): створення закупівлі під джерело одним запитом
+  const createBackorderPurchase = async ({ counterparty, items, total_amount, related_retail_order, related_service_job }) => {
+    const body = {
+      order_type: 'purchase',
+      status: PURCHASE_STATUSES.DRAFT,
+      total_amount,
+      items,
+    }
+    if (counterparty) body.counterparty = counterparty
+    if (related_retail_order) body.related_retail_order = related_retail_order
+    if (related_service_job) body.related_service_job = related_service_job
+    const { data } = await api.post('/orders/', body)
+    return data
+  }
+
+  // Сценарій 2: відкладене роздрібне замовлення під клієнта (залишається draft)
+  const createDeferredRetailOrder = async ({ counterparty, items, total_amount }) => {
+    const body = {
+      order_type: 'retail',
+      status: PURCHASE_STATUSES.DRAFT,
+      total_amount,
+      items,
+    }
+    if (counterparty) body.counterparty = counterparty
+    const { data } = await api.post('/orders/', body)
+    return data
+  }
+
   const approveOrder = async (id) => {
     isLoading.value = true
     try {
@@ -229,5 +257,7 @@ export const useProcurementStore = defineStore('procurement', () => {
     createOrder,
     updateOrder,
     approveOrder,
+    createBackorderPurchase,
+    createDeferredRetailOrder,
   }
 })

@@ -42,6 +42,14 @@
         <div v-if="isSubmitted && !formData.device && !formData.device_name" class="error-text">Обов'язкове поле</div>
       </div>
 
+      <div class="form-row" style="margin-bottom: 16px;">
+        <CounterpartySelect
+          v-model="formData.counterparty"
+          label="Контрагент (Покупець)"
+          role-filter="buyer"
+        />
+      </div>
+
       <div class="form-row">
         <BaseInput
           v-model="formData.customer_name"
@@ -109,8 +117,10 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import ProductFormModal from '@/components/warehouses/ProductFormModal.vue'
+import CounterpartySelect from '@/components/counterparties/CounterpartySelect.vue'
 import IconBox from '@/components/icons/IconBox.vue'
 import { useCategoriesStore } from '@/stores/categories'
+import { useCounterpartiesStore } from '@/stores/counterparties'
 import api from '@/api/axios'
 
 const props = defineProps({
@@ -121,8 +131,10 @@ const props = defineProps({
 const emit = defineEmits(['close', 'submit'])
 
 const categoriesStore = useCategoriesStore()
+const counterpartiesStore = useCounterpartiesStore()
 
 const formData = ref({
+  counterparty: null,
   device: null,
   device_name: '',
   customer_name: '',
@@ -144,8 +156,19 @@ watch(() => props.jobData, (newJob) => {
     formData.value.customer_phone = '+380'
     formData.value.device = null
     formData.value.device_name = ''
+    formData.value.counterparty = null
   }
 }, { immediate: true })
+
+watch(() => formData.value.counterparty, (newId) => {
+  if (newId) {
+    const cp = counterpartiesStore.counterparties.find(c => c.id === newId)
+    if (cp) {
+      formData.value.customer_name = cp.name || ''
+      formData.value.customer_phone = cp.phone || '+380'
+    }
+  }
+})
 
 const categoryOptions = computed(() => {
   return [

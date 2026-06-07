@@ -2,6 +2,16 @@
   <BaseModal :is-open="isOpen" @close="$emit('close')" title="Деталі ремонту">
     <div v-if="job" class="details-container">
 
+      <!-- Сценарій 2: статус надходження запчастини -->
+      <div v-if="backorderStatus === 'awaiting'" class="backorder-alert alert-warning">
+        🟡 Очікує надходження запчастини
+        <span v-if="job.backorder_purchase">(закупівля #{{ job.backorder_purchase.id }})</span>
+      </div>
+      <div v-else-if="backorderStatus === 'arrived'" class="backorder-alert alert-success">
+        🟢 Запчастина приїхала — можна видавати клієнту!
+        <span v-if="job.backorder_purchase">(закупівля #{{ job.backorder_purchase.id }})</span>
+      </div>
+
       <div class="detail-section">
         <h4 class="section-title">Інформація про клієнта</h4>
         <div class="detail-row"><span>Ім'я:</span> <b>{{ job.customer_name }}</b></div>
@@ -61,23 +71,37 @@
       </div>
 
       <div class="modal-actions">
+        <BaseButton v-if="!job.backorder_purchase" variant="secondary" class="order-part-btn" @click="openBackorder">
+          🔧 Замовити запчастину
+        </BaseButton>
         <BaseButton v-if="job.balance_due > 0 || !job.payment_status || job.payment_status === 'unpaid'" variant="primary" @click="openPayment">Оплатити</BaseButton>
         <BaseButton variant="secondary" @click="$emit('close')">Закрити</BaseButton>
       </div>
     </div>
+
+    <PurchaseFormModal
+      v-if="isBackorderFormOpen"
+      :is-open="isBackorderFormOpen"
+      :related-service-job-id="job?.id"
+      :related-source-label="`Ремонт #${job?.id} (${job?.customer_name || ''})`"
+      @close="isBackorderFormOpen = false"
+      @save="handleBackorderSave"
+    />
   </BaseModal>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useRepairsStore } from '@/stores/repairs'
+import { useProcurementStore } from '@/stores/procurement'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
+import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
 import { REPAIR_STATUSES, REPAIR_STATUS_LABELS } from '@/constants/repairs'
 import { formatDate } from '@/utils/formatters'
 
-const emit = defineEmits(['close', 'pay'])
+const emit = defineEmits(['close', 'pay', 'refresh'])
 
 const props = defineProps({
   isOpen: Boolean,
@@ -85,7 +109,41 @@ const props = defineProps({
 })
 
 const repairsStore = useRepairsStore()
+const procurementStore = useProcurementStore()
 const isUpdating = ref(false)
+const isBackorderFormOpen = ref(false)
+
+// Статус надходження запчастини (Сценарій 2)
+const backorderStatus = computed(() => {
+  const bp = props.job?.backorder_purchase
+  if (!bp) return null
+  return bp.status === 'paid' ? 'arrived' : 'awaiting'
+})
+
+const openBackorder = () => {
+  isBackorderFormOpen.value = true
+}
+
+const handleBackorderSave = async (payload) => {
+  try {
+    await procurementStore.createBackorderPurchase({
+      counterparty: payload.counterparty,
+      items: payload.items,
+      total_amount: payload.total_amount,
+      related_service_job: props.job.id
+    })
+    window.dispatchEvent(new CustomEvent('app-success', {
+      detail: { message: 'Запчастину замовлено у постачальника.', type: 'success' }
+    }))
+    isBackorderFormOpen.value = false
+    emit('refresh')
+  } catch (e) {
+    console.error('Помилка замовлення запчастини:', e)
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Не вдалося замовити запчастину.', type: 'error' }
+    }))
+  }
+}
 
 const statusOptions = computed(() => {
   return Object.values(REPAIR_STATUSES).map(status => ({
@@ -99,6 +157,19 @@ const changeStatus = async (newStatus) => {
   isUpdating.value = true
   try {
     await repairsStore.updateJobStatus(props.job.id, newStatus)
+    emit('refresh')
+  } catch (error) {
+    const data = error.response?.data
+    let msg = 'Дію відхилено. Перевірте статус оплати або інші умови.'
+    if (data && typeof data === 'object') {
+      if (data.error) msg = data.error
+      else if (data.detail) msg = data.detail
+    }
+    window.dispatchEvent(
+      new CustomEvent('api-error', {
+        detail: { message: msg, type: 'error' },
+      }),
+    )
   } finally {
     isUpdating.value = false
   }
@@ -119,6 +190,11 @@ const openPayment = () => {
 
 <style scoped>
 .details-container { display: flex; flex-direction: column; gap: 20px; }
+
+.backorder-alert { padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; }
+.alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #b45309; }
+.alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+.order-part-btn { margin-right: auto; }
 .detail-section { display: flex; flex-direction: column; gap: 8px; background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; }
 .section-title { margin: 0 0 4px 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; }
 .detail-row { display: flex; justify-content: space-between; align-items: flex-start; font-size: 0.95rem; color: #334155; gap: 16px; }
@@ -137,5 +213,29 @@ const openPayment = () => {
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 .storage-badge { background-color: #eff6ff; color: #2563eb; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; border: 1px solid #bfdbfe; }
-.modal-actions { display: flex; justify-content: flex-end; align-items: center; margin-top: 8px; }
+.modal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 8px; }
+
+@media (max-width: 480px) {
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .modal-actions :deep(button) {
+    width: 100%;
+    margin: 0;
+  }
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .detail-row b {
+    text-align: left;
+  }
+  .status-select-wrapper {
+    width: 100%;
+    text-align: left;
+    margin-top: 8px;
+  }
+}
 </style>

@@ -12,7 +12,7 @@
       :aria-invalid="!!error"
       role="combobox"
       @click="toggleDropdown"
-      @keydown.enter.prevent="toggleDropdown"
+      @keydown.enter.prevent="handleEnter"
       @keydown.space.prevent="toggleDropdown"
       @keydown.esc.prevent="closeDropdown"
       @keydown.down.prevent="navigateOptions(1)"
@@ -46,35 +46,40 @@
               @keydown.enter.prevent
             />
           </div>
-          <button
-            type="button"
-            v-for="(option, index) in options"
-            :key="option.value"
-            class="option-btn"
-            :class="{ 'is-active': modelValue === option.value, 'is-focused': focusedIndex === index }"
-            role="option"
-            :aria-selected="modelValue === option.value"
-            @click.stop="selectOption(option)"
-            @mousemove="focusedIndex = index"
-          >
-            <span class="option-txt">{{ option.label }}</span>
-            <svg
-              v-if="modelValue === option.value"
-              class="check-icon"
-              xmlns="http://www.w3.org/2000/svg"
-              width="14" height="14" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="3"
-              stroke-linecap="round" stroke-linejoin="round"
-            >
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-          </button>
 
-          <div v-if="options.length === 0" class="no-options">
-            Нічого не знайдено
+          <div class="dropdown-options-list">
+            <button
+              type="button"
+              v-for="(option, index) in options"
+              :key="option.value"
+              class="option-btn"
+              :class="{ 'is-active': modelValue === option.value, 'is-focused': focusedIndex === index }"
+              role="option"
+              :aria-selected="modelValue === option.value"
+              @click.stop="selectOption(option)"
+              @mousemove="focusedIndex = index"
+            >
+              <span class="option-txt">{{ option.label }}</span>
+              <svg
+                v-if="modelValue === option.value"
+                class="check-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </button>
+
+            <div v-if="options.length === 0" class="no-options">
+              Нічого не знайдено
+            </div>
           </div>
 
-          <slot name="append"></slot>
+          <div v-if="$slots.append" class="dropdown-footer">
+            <slot name="append"></slot>
+          </div>
         </div>
       </transition>
     </div>
@@ -129,6 +134,14 @@ const toggleDropdown = () => {
       searchQuery.value = ''
       emit('search', '')
     }
+  }
+}
+
+const handleEnter = () => {
+  if (isOpen.value && focusedIndex.value !== -1 && props.options[focusedIndex.value]) {
+    selectOption(props.options[focusedIndex.value])
+  } else {
+    toggleDropdown()
   }
 }
 
@@ -190,7 +203,9 @@ const navigateOptions = (direction) => {
 .placeholder-text { color: #94a3b8; font-weight: 400; }
 .dropdown-arrow { font-size: 0.65rem; color: #94a3b8; transition: transform 0.2s ease; flex-shrink: 0; margin-left: 8px; }
 .dropdown-arrow.rotated { transform: rotate(180deg); }
-.dropdown-menu { position: absolute; top: calc(100% + 6px); left: 0; width: 100%; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08); overflow: hidden; display: flex; flex-direction: column; padding: 4px; z-index: 100; max-height: 250px; overflow-y: auto; }
+.dropdown-menu { position: absolute; top: calc(100% + 6px); left: 0; width: 100%; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08); overflow: hidden; display: flex; flex-direction: column; z-index: 100; max-height: 350px; }
+.dropdown-options-list { flex: 1; overflow-y: auto; max-height: 250px; padding: 4px; }
+.dropdown-footer { border-top: 1px solid #e2e8f0; background: #ffffff; position: sticky; bottom: 0; }
 .option-btn { width: 100%; text-align: left; padding: 10px 12px; background: transparent; border: none; font-size: 0.9rem; font-weight: 500; color: #4b5563; cursor: pointer; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s ease; }
 .option-btn:focus, .option-btn.is-focused { background-color: #f3f4f6; outline: none; }
 .option-btn.is-active { background-color: #eff6ff; color: #2563eb; font-weight: 600; }

@@ -13,6 +13,7 @@
         searchPlaceholder="Пошук (ID замовлення)..."
         :filters="filterBarConfig"
         :modelValue="filters.search"
+        :filterValues="filters"
         @update:search="onSearchUpdate"
         @update:filter="onFilterUpdate"
         style="margin-bottom: 0;"
@@ -35,6 +36,7 @@
         :purchases="procurementStore.orders"
         @edit="openEditModal"
         @approve="openReceiveModal"
+        @view-source="handleViewSource"
       />
     </main>
 
@@ -55,6 +57,19 @@
       @close="closeReceiveModal"
       @confirm="handleReceiveConfirm"
     />
+
+    <!-- Сценарій 2: перегляд джерела backorder-закупівлі -->
+    <RepairDetailsModal
+      v-if="sourceRepairJob"
+      :is-open="!!sourceRepairJob"
+      :job="sourceRepairJob"
+      @close="sourceRepairJob = null"
+    />
+    <PendingOrderDetailsModal
+      :is-open="!!sourceOrder"
+      :order="sourceOrder"
+      @close="sourceOrder = null"
+    />
   </div>
 </template>
 
@@ -67,6 +82,8 @@ import FilterBar from '@/components/ui/FilterBar.vue'
 import PurchasesTable from '@/components/purchases/PurchasesTable.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
 import ReceiveOrderModal from '@/components/orders/ReceiveOrderModal.vue'
+import RepairDetailsModal from '@/components/repairs/RepairDetailsModal.vue'
+import PendingOrderDetailsModal from '@/components/finance/PendingOrderDetailsModal.vue'
 import { useWarehousesStore } from '@/stores/warehouses'
 import api from '@/api/axios'
 
@@ -81,6 +98,23 @@ const warehousesStore = useWarehousesStore()
 
 const isReceiveModalOpen = ref(false)
 const orderToReceive = ref(null)
+
+// Сценарій 2: перегляд джерела backorder-закупівлі
+const sourceRepairJob = ref(null)
+const sourceOrder = ref(null)
+
+const handleViewSource = async ({ type, id }) => {
+  if (type === 'repair') {
+    try {
+      const { data } = await api.get(`/service-jobs/${id}/`)
+      sourceRepairJob.value = data
+    } catch (e) {
+      console.error('Не вдалося завантажити ремонт:', e)
+    }
+  } else if (type === 'order') {
+    sourceOrder.value = { id }
+  }
+}
 
 const filters = ref({
   search: '',

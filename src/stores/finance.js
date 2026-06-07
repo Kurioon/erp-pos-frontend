@@ -57,20 +57,41 @@ export const useFinanceStore = defineStore('finance', () => {
 
   const fetchPartialOrders = async () => {
     try {
-      const response = await api.get('/orders/?status=partial')
+      const response = await api.get('/transactions/?status=pending')
       partialOrders.value = response.data.results || response.data || []
     } catch (error) {
-      console.error('Помилка завантаження часткових замовлень:', error)
+      console.error('Помилка завантаження боргів:', error)
     }
   }
 
-  const submitPrepay = async (orderId, amount, cashboxId) => {
+  const submitPrepay = async (transaction, amount, cashboxId) => {
     isSubmittingPrepay.value = true
     try {
-      await api.post(`/orders/${orderId}/prepay/`, {
+      let endpoint = ''
+      let currency = 'UAH'
+
+      if (typeof transaction === 'object' && transaction !== null) {
+        currency = transaction.currency || 'UAH'
+        const source = transaction.source_document || {}
+        if (source.type === 'repair') {
+          endpoint = `/warehouses/service-jobs/${source.id}/payment/`
+        } else if (source.id) {
+          endpoint = `/orders/${source.id}/prepay/`
+        } else if (transaction.id) {
+          endpoint = `/orders/${transaction.id}/prepay/`
+        }
+      } else {
+        endpoint = `/orders/${transaction}/prepay/`
+      }
+
+      if (!endpoint) {
+        throw new Error('Invalid transaction or order ID')
+      }
+
+      await api.post(endpoint, {
         amount: Number(amount),
         cash_register: cashboxId,
-        currency: 'UAH'
+        currency: currency
       })
 
       window.dispatchEvent(

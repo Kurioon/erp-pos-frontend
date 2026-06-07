@@ -2,24 +2,21 @@
   <BaseModal :is-open="isOpen" @close="emit('close')" :title="editMode ? 'Редагувати замовлення' : 'Нове замовлення'">
     <div class="purchase-modal-wrapper">
 
+      <div v-if="relatedSourceLabel" class="backorder-banner">
+        🔗 Ця закупівля виконується під {{ relatedSourceLabel }}
+      </div>
+
       <div class="form-row-top">
         <div class="form-group">
-          <div class="supplier-label-container">
-            <label class="form-label">Постачальник</label>
-            <button type="button" class="inline-add-btn" @click="isAddingNewSupplier = !isAddingNewSupplier">
-              {{ isAddingNewSupplier ? '← До списку' : '+ Новий' }}
-            </button>
-          </div>
-
-          <BaseSelect
-            v-if="!isAddingNewSupplier"
-            v-model="localOrder.supplier"
-            :options="supplierOptions"
-            placeholder="Оберіть..."
+          <CounterpartySelect
+            v-if="!fixedSupplierId"
+            v-model="localOrder.counterparty"
+            label="Контрагент (Постачальник)"
+            role-filter="supplier"
           />
-          <div v-else class="inline-supplier-input-block">
-            <BaseInput v-model="newSupplierName" label="" placeholder="Назва..." @keyup.enter="handleAddNewSupplier" />
-            <BaseButton variant="secondary" @click="handleAddNewSupplier">Додати</BaseButton>
+          <div v-else class="supplier-locked">
+            <label class="locked-label">Постачальник (зафіксовано)</label>
+            <div class="locked-value">Обраний постачальник</div>
           </div>
         </div>
 
@@ -54,10 +51,11 @@
                       placeholder="Пошук товару..." 
                       class="dropdown-search-input"
                     />
-                    <select v-model="filters.category" @change="onCategoryChange" class="dropdown-category-select">
-                      <option value="">Всі категорії</option>
-                      <option v-for="c in categoriesStore.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-                    </select>
+                    <BaseSelect 
+                      v-model="filters.category" 
+                      :options="purchaseCategoryOptions" 
+                      @change="onCategoryChange" 
+                    />
                   </div>
                 </template>
               </BaseSelect>
@@ -118,16 +116,21 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import FilterBar from '@/components/ui/FilterBar.vue'
 import ProductFormModal from '@/components/warehouses/ProductFormModal.vue'
+import CounterpartySelect from '@/components/counterparties/CounterpartySelect.vue'
 import { useCategoriesStore } from '@/stores/categories'
 
 const props = defineProps({
   isOpen: Boolean,
   editMode: Boolean,
   orderData: Object,
-  suppliers: Array
+  fixedSupplierId: { type: Number, default: null },
+  // Сценарій 2 (Backordering): прив'язка до джерела
+  relatedRetailOrderId: { type: Number, default: null },
+  relatedServiceJobId: { type: Number, default: null },
+  relatedSourceLabel: { type: String, default: '' }
 })
 
-const emit = defineEmits(['close', 'save', 'add-supplier'])
+const emit = defineEmits(['close', 'save'])
 const cartStore = useCartStore()
 const categoriesStore = useCategoriesStore()
 
@@ -148,6 +151,14 @@ const onCategoryChange = () => {
   cartStore.fetchProducts(1, filters.value)
 }
 
+const purchaseCategoryOptions = computed(() => {
+  const opts = [{ value: '', label: 'Всі категорії' }]
+  categoriesStore.categories.forEach(c => {
+    opts.push({ value: c.id, label: c.name })
+  })
+  return opts
+})
+
 const isProductModalOpen = ref(false)
 const targetItemRow = ref(null)
 
@@ -157,37 +168,29 @@ const openProductModal = (item) => {
 }
 
 const onProductCreated = async (newProduct) => {
-  // Додаємо створений товар в локальний список cartStore, щоб він одразу з'явився в опціях
   if (!cartStore.products.find(p => p.id === newProduct.id)) {
     cartStore.products.unshift(newProduct)
   }
   
-  // Якщо створення викликано для конкретного рядка (якого вже немає, бо кнопка зверху), 
-  // але ми можемо підставити його в порожній рядок
   const emptyRow = localOrder.value.items.find(i => !i.product_id)
   if (emptyRow) {
     emptyRow.product_id = newProduct.id
     handleProductChange(emptyRow)
   } else {
-    // Або створюємо новий рядок
     const newItem = { product_id: newProduct.id, qty: 1, price: 0 }
     localOrder.value.items.push(newItem)
     handleProductChange(newItem)
   }
 }
 
-const isAddingNewSupplier = ref(false)
-const newSupplierName = ref('')
-
 const localOrder = ref({
-  supplier: '',
+  counterparty: props.fixedSupplierId || '',
   date: new Date().toISOString().split('T')[0],
   items: [{ product_id: '', qty: 1, price: 0 }]
 })
 
 watch(() => props.orderData, (newData) => {
   if (props.editMode && newData) {
-    // Трансформуємо дату правильно: якщо це об'єкт Date, то .toISOString()
     let dateStr = ''
     if (newData.date) {
       const dateObj = new Date(newData.date)
@@ -197,19 +200,19 @@ watch(() => props.orderData, (newData) => {
     }
     
     localOrder.value = {
-      supplier: newData.supplier || '',
+      counterparty: props.fixedSupplierId || newData.counterparty || '',
       date: dateStr,
       items: newData.items && Array.isArray(newData.items) && newData.items.length > 0
         ? newData.items.map(item => ({
-            product_id: item.product ? Number(item.product) : '',
-            qty: Number(item.qty || item.quantity || 1),
-            price: Number(item.price || 0)
+            product_id: item.product,
+            qty: item.quantity,
+            price: Number(item.price)
           }))
         : [{ product_id: '', qty: 1, price: 0 }]
     }
   } else if (!props.editMode) {
     localOrder.value = {
-      supplier: '',
+      counterparty: props.fixedSupplierId || '',
       date: new Date().toISOString().split('T')[0],
       items: [{ product_id: '', qty: 1, price: 0 }]
     }
@@ -225,37 +228,15 @@ onMounted(async () => {
   }
 })
 
-// === АВТОМАТИЧНЕ ПІДСТАВЛЕННЯ ЦІНИ ===
 const handleProductChange = (item) => {
   if (!item.product_id) return
-
-  // Шукаємо обраний товар у каталозі
   const product = cartStore.products.find(p => p.id === item.product_id)
-
   if (product) {
-    // Підставляємо закупівельну ціну (purchase_price). Якщо її нема - звичайну ціну, або 0.
     item.price = Number(product.purchase_price || product.price || 0)
   }
 }
 
-const supplierOptions = computed(() => {
-  const opts = props.suppliers.map(s => ({ value: s, label: s }))
-  if (localOrder.value.supplier && !props.suppliers.includes(localOrder.value.supplier)) {
-    opts.unshift({ value: localOrder.value.supplier, label: localOrder.value.supplier })
-  }
-  return opts
-})
-
 const productOptions = computed(() => cartStore.products.map(p => ({ value: p.id, label: p.title || p.name })))
-
-const handleAddNewSupplier = () => {
-  const cleanName = newSupplierName.value.trim()
-  if (!cleanName) return
-  emit('add-supplier', cleanName)
-  localOrder.value.supplier = cleanName
-  newSupplierName.value = ''
-  isAddingNewSupplier.value = false
-}
 
 const addFormItem = () => localOrder.value.items.push({ product_id: '', qty: 1, price: 0 })
 const removeFormItem = (index) => { if (localOrder.value.items.length > 1) localOrder.value.items.splice(index, 1) }
@@ -268,34 +249,33 @@ const isFormValid = computed(() => {
   return validItems.value.length > 0
 })
 
+const applyRelations = (payload) => {
+  if (props.relatedRetailOrderId) payload.related_retail_order = props.relatedRetailOrderId
+  if (props.relatedServiceJobId) payload.related_service_job = props.relatedServiceJobId
+  return payload
+}
+
 const submitDraft = () => {
-  const payload = {
-    comment_ttn: localOrder.value.supplier
-      ? `Постачальник: ${localOrder.value.supplier} | Дата: ${localOrder.value.date}`
-      : `Дата: ${localOrder.value.date}`,
+  const payload = applyRelations({
     total_amount: formTotalSum.value,
     items: validItems.value.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price }))
-  }
-  if (localOrder.value.supplier) {
-    payload.supplier = localOrder.value.supplier
+  })
+  if (localOrder.value.counterparty) {
+    payload.counterparty = localOrder.value.counterparty
   }
   emit('save', payload)
 }
 
 const submitConfirm = () => {
   if (!isFormValid.value) return
-  const payload = {
-    comment_ttn: localOrder.value.supplier
-      ? `Постачальник: ${localOrder.value.supplier} | Дата: ${localOrder.value.date}`
-      : `Дата: ${localOrder.value.date}`,
+  const payload = applyRelations({
     total_amount: formTotalSum.value,
     items: validItems.value.map(i => ({ product: i.product_id, quantity: i.qty, price: i.price })),
-    status: 'pending' // TODO: or 'received' depending on logic, for now draft is enough, emit 'save-confirm' if supported. Wait, ProcurementView just handles 'save' as draft.
+    status: 'pending'
+  })
+  if (localOrder.value.counterparty) {
+    payload.counterparty = localOrder.value.counterparty
   }
-  if (localOrder.value.supplier) {
-    payload.supplier = localOrder.value.supplier
-  }
-  // If ProcurementView doesn't handle save-confirm yet, we just emit save for now.
   payload.auto_confirm = true
   emit('save', payload)
 }
@@ -321,10 +301,6 @@ const submitConfirm = () => {
 }
 
 .form-label { font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block; }
-.supplier-label-container { display: flex; justify-content: space-between; align-items: center; }
-.inline-add-btn { background: transparent; border: none; color: #2563eb; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 0; }
-.inline-supplier-input-block { display: flex; gap: 8px; align-items: flex-end; }
-.section-subtitle { font-size: 0.75rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; margin-bottom: 12px; }
 
 .items-blank-list {
   display: flex;
@@ -353,12 +329,42 @@ const submitConfirm = () => {
 .fg-qty :deep(input), .fg-price :deep(input) {
   min-width: 0 !important;
   width: 100% !important;
-  padding: 8px !important; /* Робимо текст трохи вільнішим всередині інпута */
+  padding: 8px !important;
 }
 
 .remove-item-btn { background: #fef2f2; border: 1px solid #fca5a5; color: #ef4444; width: 32px; height: 32px; border-radius: 6px; font-size: 1.2rem; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: all 0.2s; padding: 0; margin: 0; }
 .remove-item-btn:hover:not(:disabled) { background: #fee2e2; }
 .remove-item-btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: #f87171; }
+
+.backorder-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.supplier-locked {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.locked-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+.locked-value {
+  padding: 10px 16px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  font-weight: 500;
+  cursor: not-allowed;
+}
 
 .add-row-btn { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px dashed #cbd5e1; color: #2563eb; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 8px; width: 100%; }
 .add-row-btn:hover { background-color: #eff6ff; border-color: #2563eb; }

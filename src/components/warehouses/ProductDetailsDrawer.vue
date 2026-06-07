@@ -12,7 +12,7 @@
           <button class="close-btn" @click="emit('close')">✕</button>
         </div>
 
-        <div class="panel-tabs">
+        <div class="panel-tabs" ref="tabsContainer" @keydown="handleTabKeydown">
           <BaseButton class="tab-btn" :class="{ active: activePanelTab === 'info' }" @click="activePanelTab = 'info'">
             <IconInfo />
             Інфо
@@ -49,7 +49,12 @@
                 </div>
                 <div class="info-row">
                   <span class="info-label">Постачальник:</span>
-                  <span class="info-val">{{ fullProductDetails.supplier_name || '—' }}</span>
+                  <span class="info-val">
+                    <a v-if="fullProductDetails.supplier || fullProductDetails.counterparty" href="#" @click.prevent="openDrawer(fullProductDetails.supplier || fullProductDetails.counterparty)" class="text-link">
+                      {{ fullProductDetails.supplier_name || fullProductDetails.counterparty_name || 'Не вказано' }}
+                    </a>
+                    <span v-else>{{ fullProductDetails.supplier_name || fullProductDetails.counterparty_name || '—' }}</span>
+                  </span>
                 </div>
               </div>
 
@@ -129,11 +134,11 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label">Валюта</label>
-                  <select v-model="localProduct.base_currency" class="custom-select">
-                    <option value="UAH">₴ (Гривня)</option>
-                    <option value="USD">$ (Долар США)</option>
-                    <option value="EUR">€ (Євро)</option>
-                  </select>
+                  <BaseSelect v-model="localProduct.base_currency" :options="[
+                    { value: 'UAH', label: '₴ (Гривня)' },
+                    { value: 'USD', label: '$ (Долар США)' },
+                    { value: 'EUR', label: '€ (Євро)' }
+                  ]" />
                 </div>
               </div>
               
@@ -167,22 +172,12 @@
             <div class="edit-form">
               <div class="form-group">
                 <label class="form-label">Зі складу</label>
-                <select v-model="moveForm.from_warehouse" class="custom-select">
-                  <option disabled value="">Оберіть склад-відправник</option>
-                  <option v-for="stock in activeStocks" :key="stock.warehouse" :value="stock.warehouse">
-                    {{ getWarehouseName(stock.warehouse) }} ({{ stock.quantity }} шт)
-                  </option>
-                </select>
+                <BaseSelect v-model="moveForm.from_warehouse" :options="activeStocksOptions" placeholder="Оберіть склад-відправник" />
               </div>
 
               <div class="form-group">
                 <label class="form-label">На склад</label>
-                <select v-model="moveForm.to_warehouse" class="custom-select">
-                  <option disabled value="">Оберіть склад-отримувач</option>
-                  <option v-for="w in availableDestinations" :key="w.id" :value="w.id">
-                    {{ w.name }}
-                  </option>
-                </select>
+                <BaseSelect v-model="moveForm.to_warehouse" :options="availableDestinationsOptions" placeholder="Оберіть склад-отримувач" />
               </div>
 
               <div class="form-group">
@@ -235,11 +230,13 @@ import api from '@/api/axios'
 import { formatCurrency } from '@/utils/formatters'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import BaseSelect from '@/components/ui/BaseSelect.vue'
 import IconEdit from '@/components/icons/IconEdit.vue'
 import IconMove from '@/components/icons/IconMove.vue'
 import IconHistory from '@/components/icons/IconHistory.vue'
 import IconInfo from '@/components/icons/IconInfo.vue'
 import { useExchangeRatesStore } from '@/stores/exchangeRates'
+import { useCounterpartiesStore } from '@/stores/counterparties'
 
 const props = defineProps({
   product: { type: Object, default: null },
@@ -248,11 +245,43 @@ const props = defineProps({
   readonly: { type: Boolean, default: false }
 })
 
+const counterpartiesStore = useCounterpartiesStore()
 const emit = defineEmits(['close', 'save', 'move-stock'])
+
+const openDrawer = (id) => {
+  counterpartiesStore.openGlobalDrawer(id)
+}
 
 const exchangeRatesStore = useExchangeRatesStore()
 
 const activePanelTab = ref('info')
+const tabsContainer = ref(null)
+
+const handleTabKeydown = (e) => {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+  
+  if (!tabsContainer.value) return
+  const buttons = Array.from(tabsContainer.value.querySelectorAll('.tab-btn'))
+  const currentIndex = buttons.indexOf(document.activeElement)
+  
+  if (currentIndex === -1) return
+  
+  e.preventDefault()
+  
+  let nextIndex
+  if (e.key === 'ArrowRight') {
+    nextIndex = (currentIndex + 1) % buttons.length
+  } else if (e.key === 'ArrowLeft') {
+    nextIndex = (currentIndex - 1 + buttons.length) % buttons.length
+  }
+  
+  const nextBtn = buttons[nextIndex]
+  if (nextBtn) {
+    nextBtn.focus()
+    nextBtn.click()
+  }
+}
+
 const localProduct = ref(null)
 const fullProductDetails = ref(null)
 const productStocks = ref([])
@@ -390,6 +419,20 @@ const availableDestinations = computed(() => {
   return props.warehouses.filter(w => w.id !== moveForm.value.from_warehouse)
 })
 
+const activeStocksOptions = computed(() => {
+  return activeStocks.value.map(stock => ({
+    value: stock.warehouse,
+    label: `${getWarehouseName(stock.warehouse)} (${stock.quantity} шт)`
+  }))
+})
+
+const availableDestinationsOptions = computed(() => {
+  return availableDestinations.value.map(w => ({
+    value: w.id,
+    label: w.name
+  }))
+})
+
 const maxMoveQuantity = computed(() => {
   if (!moveForm.value.from_warehouse) return 0
   const stock = activeStocks.value.find(s => s.warehouse === moveForm.value.from_warehouse)
@@ -464,9 +507,9 @@ const getHistoryQtyClass = (qty) => {
 </script>
 
 <style scoped>
-.panel-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.3); backdrop-filter: blur(2px); z-index: 900; opacity: 0; visibility: hidden; transition: all 0.25s ease; }
+.panel-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.3); backdrop-filter: blur(2px); z-index: 10000; opacity: 0; visibility: hidden; transition: all 0.25s ease; }
 .panel-overlay.is-open { opacity: 1; visibility: visible; }
-.side-panel { position: fixed; top: 0; right: 0; width: 440px; height: 100vh; background: white; box-shadow: -10px 0 25px rgba(0,0,0,0.08); z-index: 1000; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; border-left: 1px solid #e2e8f0; }
+.side-panel { position: fixed; top: 0; right: 0; width: 440px; max-width: 100vw; height: 100vh; background: white; box-shadow: -10px 0 25px rgba(0,0,0,0.08); z-index: 10001; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; border-left: 1px solid #e2e8f0; }
 .side-panel.is-open { transform: translateX(0); }
 .panel-header { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #f1f5f9; }
 .panel-sku { color: #64748b; font-size: 0.85rem; margin: 0 0 4px 0; }
@@ -475,7 +518,8 @@ const getHistoryQtyClass = (qty) => {
 .close-btn:hover { background: #e2e8f0; color: #0f172a; }
 
 .panel-tabs { display: flex; border-bottom: 1px solid #e2e8f0; padding: 0 24px; background-color: #f8fafc; }
-.tab-btn { flex: 1; padding: 14px 0 !important; background: transparent !important; border: none !important; border-bottom: 2px solid transparent !important; font-size: 0.85rem !important; font-weight: 600 !important; color: #64748b !important; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; min-width: unset !important; }
+.tab-btn { flex: 1; padding: 14px 0 !important; background: transparent !important; border: none !important; border-bottom: 2px solid transparent !important; font-size: 0.85rem !important; font-weight: 600 !important; color: #64748b !important; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; min-width: unset !important; outline: none; }
+.tab-btn:focus-visible { outline: 2px solid #2563eb !important; outline-offset: -2px; border-radius: 6px; background-color: rgba(37, 99, 235, 0.05) !important; }
 .tab-btn.active { color: #2563eb !important; border-bottom-color: #2563eb !important; }
 
 .panel-content { padding: 24px; flex: 1; overflow-y: auto; }
@@ -529,4 +573,14 @@ const getHistoryQtyClass = (qty) => {
 .info-label { font-size: 0.85rem; color: #64748b; font-weight: 600; }
 .info-val { font-size: 0.95rem; color: #1e293b; font-weight: 500; text-align: right; }
 .loading-state { text-align: center; padding: 40px; color: #64748b; font-size: 0.9rem; }
+
+@media (max-width: 480px) {
+  .side-panel { width: 100vw; }
+  .panel-tabs { padding: 0 12px; overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; scrollbar-width: none; }
+  .panel-tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { min-width: max-content !important; padding: 14px 12px !important; }
+  .form-row-2 { flex-direction: column; gap: 12px; }
+  .prices-grid { grid-template-columns: 1fr; gap: 12px; }
+  .preview-values { flex-direction: column; align-items: center; gap: 4px; }
+}
 </style>

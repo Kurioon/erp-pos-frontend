@@ -17,6 +17,14 @@
         <router-view />
       </main>
     </div>
+
+    <!-- Global Counterparty Drawer -->
+    <CounterpartyDrawer
+      :is-open="counterpartiesStore.isGlobalDrawerOpen"
+      :counterparty="counterpartiesStore.currentCounterparty"
+      @close="counterpartiesStore.closeGlobalDrawer()"
+      @edit="handleGlobalDrawerEdit"
+    />
   </div>
 </template>
 
@@ -25,9 +33,17 @@ import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
+import CounterpartyDrawer from '@/components/counterparties/CounterpartyDrawer.vue'
+import { useCounterpartiesStore } from '@/stores/counterparties'
 
 const route = useRoute()
 const isMobileSidebarOpen = ref(false)
+const counterpartiesStore = useCounterpartiesStore()
+
+const handleGlobalDrawerEdit = (cp) => {
+  // If we need to edit from the global drawer, we could trigger the form modal.
+  // For now, it's view-only globally or you can add a global modal too.
+}
 
 watch(() => route.path, () => {
   isMobileSidebarOpen.value = false

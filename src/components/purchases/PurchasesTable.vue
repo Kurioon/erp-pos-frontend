@@ -15,12 +15,25 @@
         <template v-for="order in props.purchases" :key="order.id">
           <tr v-if="order" class="main-row" :class="{ 'is-expanded': expandedRowId === order.id }" @click="toggleRow(order.id)">
             <td class="text-muted font-medium">{{ order.id }}</td>
-            <td class="font-bold text-dark">{{ order.supplier || 'Не вказано' }}</td>
+            <td class="font-bold text-dark">
+              <a v-if="order.counterparty" href="#" @click.stop="openDrawer(order.counterparty)" class="text-link">
+                {{ order.supplier || 'Не вказано' }}
+              </a>
+              <span v-else>{{ order.supplier || 'Не вказано' }}</span>
+            </td>
             <td class="text-muted">{{ order.date ? formatDate(order.date) : '—' }}</td>
             <td>
               <span class="status-badge" :class="resolveStatusClass(order.status)">
                 {{ resolveStatusLabel(order.status) }}
               </span>
+              <button
+                v-if="getSourceInfo(order)"
+                class="backorder-badge"
+                :title="`Перейти до: ${getSourceInfo(order).label}`"
+                @click.stop="emit('view-source', getSourceInfo(order))"
+              >
+                🔗 {{ getSourceInfo(order).label }}
+              </button>
             </td>
             <td class="font-bold text-dark text-price">
               {{ formatCurrency(getOrderTotal(order.id) || 0, 'UAH') }}
@@ -100,6 +113,7 @@
 import { ref, computed } from 'vue'
 import { PURCHASE_STATUS_LABELS } from '@/constants/purchases'
 import { formatCurrency, formatDate } from '@/utils/formatters'
+import { useCounterpartiesStore } from '@/stores/counterparties'
 
 const props = defineProps({
   purchases: {
@@ -108,8 +122,26 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['edit', 'approve'])
+const counterpartiesStore = useCounterpartiesStore()
+const emit = defineEmits(['edit', 'approve', 'view-source'])
 const expandedRowId = ref(null)
+
+// Сценарій 2: інфо про джерело backorder-закупівлі
+const getSourceInfo = (order) => {
+  if (order.related_service_job_data) {
+    const sj = order.related_service_job_data
+    return { type: 'repair', id: sj.id, label: `Під Ремонт #${sj.id}` }
+  }
+  if (order.related_retail_order_data) {
+    const ro = order.related_retail_order_data
+    return { type: 'order', id: ro.id, label: `Під Замовлення #${ro.id}` }
+  }
+  return null
+}
+
+const openDrawer = (id) => {
+  counterpartiesStore.openGlobalDrawer(id)
+}
 
 // Кешуємо обчислену суму для кожного замовлення
 const orderTotalsCache = computed(() => {
@@ -171,6 +203,9 @@ const getDiscrepancyInfo = (order) => {
 .main-row { cursor: pointer; transition: background-color 0.2s ease, border-left 0.2s ease; border-left: 4px solid transparent; }
 .main-row:hover { background-color: #f8fafc; }
 .main-row.is-expanded { background-color: #eff6ff; border-left: 4px solid #3b82f6; }
+
+.backorder-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.backorder-badge:hover { background: #dbeafe; }
 
 .text-muted { color: #64748b; }
 .text-dark { color: #0f172a; }

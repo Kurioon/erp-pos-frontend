@@ -2,15 +2,13 @@
   <div class="admin-view">
     <header class="admin-header">
       <div class="header-title-row">
-        <div>
-          <h1>Співробітники</h1>
-          <p class="subtitle">Управління доступом та ролями користувачів мережі</p>
-        </div>
-        <div class="header-actions">
-          <BaseButton variant="primary" @click="isUserModalOpen = true">
-            + Додати користувача
-          </BaseButton>
-        </div>
+        <h1>Співробітники</h1>
+        <p class="subtitle">Управління доступом та ролями користувачів мережі</p>
+      </div>
+      <div class="header-actions">
+        <BaseButton variant="primary" @click="isUserModalOpen = true">
+          + Додати користувача
+        </BaseButton>
       </div>
     </header>
 
@@ -36,14 +34,14 @@
             <td colspan="6" class="text-center py-4 text-muted">Немає користувачів</td>
           </tr>
           <tr v-for="user in users" :key="user.id" :class="{ 'user-inactive': !user.is_active }">
-            <td class="font-medium">{{ user.email }}</td>
-            <td>{{ user.name }}</td>
-            <td>
+            <td data-label="Email" class="font-medium">{{ user.email }}</td>
+            <td data-label="Ім'я">{{ user.name }}</td>
+            <td data-label="Роль">
               <BaseStatusBadge :status="user.role === 'admin' ? 'paid' : 'draft'">
                 {{ user.role === 'admin' ? 'Адміністратор' : 'Продавець' }}
               </BaseStatusBadge>
             </td>
-            <td>
+            <td data-label="Статус">
               <label class="toggle-switch">
                 <input 
                   type="checkbox" 
@@ -54,8 +52,8 @@
                 <span class="slider round"></span>
               </label>
             </td>
-            <td class="text-muted">{{ formatDate(user.date_joined) }}</td>
-            <td class="actions-cell">
+            <td data-label="Дата реєстрації" class="text-muted">{{ formatDate(user.date_joined) }}</td>
+            <td data-label="Дії" class="actions-cell">
               <BaseSelect
                 v-model="user.role"
                 :options="roleOptions"
@@ -311,5 +309,86 @@ input:checked + .slider:before {
 input:disabled + .slider {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  .users-table-container {
+    overflow-x: auto;
+  }
+  .users-table {
+    min-width: 800px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .users-table-container {
+    background: transparent;
+    border: none;
+    overflow: visible;
+  }
+  
+  .users-table {
+    min-width: unset;
+  }
+  
+  .users-table, .users-table tbody, .users-table tr, .users-table td {
+    display: block;
+    width: 100%;
+  }
+  
+  .users-table thead {
+    display: none;
+  }
+  
+  .users-table tr {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+  }
+  
+  .users-table td {
+    padding: 10px 0;
+    border-bottom: 1px dashed #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+  }
+  
+  .users-table td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  
+  .users-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #64748b;
+    text-transform: uppercase;
+    text-align: left;
+    margin-right: 16px;
+  }
+  
+  .users-table td[colspan] {
+    display: block;
+    text-align: center;
+    justify-content: center;
+  }
+  .users-table td[colspan]::before {
+    display: none;
+  }
+  
+  .actions-cell {
+    justify-content: flex-end;
+  }
 }
 </style>
