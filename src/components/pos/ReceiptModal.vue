@@ -13,11 +13,19 @@
         </div>
 
         <div class="receipt-items">
-          <div v-for="item in orderData?.items" :key="item.id" class="receipt-item">
-            <div class="item-name">{{ item.title || item.name }}</div>
+          <div v-for="item in orderData?.items" :key="item.id || item.product" class="receipt-item">
+            <div class="item-name">{{ item.title || item.name || item.product_name }}</div>
             <div class="item-calc">
-              <span>{{ item.qty }} x {{ formatCurrency(item.price, currency) }}</span>
-              <span>{{ formatCurrency(item.qty * item.price, currency) }}</span>
+              <span>{{ item.quantity || item.qty }} x {{ formatCurrency(item.price, currency) }}</span>
+              <span>{{ formatCurrency((item.quantity || item.qty) * item.price, currency) }}</span>
+            </div>
+            <div class="item-calc discount-row" v-if="item.discount_amount > 0">
+              <span>Знижка:</span>
+              <span>-{{ formatCurrency(item.discount_amount * (item.quantity || item.qty), currency) }}</span>
+            </div>
+            <div class="item-calc final-row" v-if="item.discount_amount > 0">
+              <span>З урахуванням знижки:</span>
+              <span>{{ formatCurrency((item.quantity || item.qty) * (item.price - item.discount_amount), currency) }}</span>
             </div>
           </div>
         </div>
@@ -25,9 +33,13 @@
         <div class="divider"></div>
 
         <div class="receipt-summary">
+          <div class="summary-row" v-if="orderData?.discount_amount > 0">
+            <span>Знижка на чек:</span>
+            <span>-{{ formatCurrency(orderData.discount_amount, currency) }}</span>
+          </div>
           <div class="summary-row total">
-            <span>СУМА:</span>
-            <span>{{ formatCurrency(orderData?.totalAmount, currency) }}</span>
+            <span>СУМА ДО ОПЛАТИ:</span>
+            <span>{{ formatCurrency(orderData?.totalAmount || orderData?.total_amount, currency) }}</span>
           </div>
           <div class="summary-row" v-if="orderData?.prepayAmount > 0">
             <span>Передоплата:</span>
@@ -153,7 +165,19 @@ const printReceipt = async () => {
 .receipt-header p, .receipt-footer p { margin: 4px 0; font-size: 12px; }
 .divider { border-top: 1px dashed #000; margin: 12px 0; }
 .receipt-item { margin-bottom: 8px; }
-.item-calc { display: flex; justify-content: space-between; padding-left: 10px; }
+.item-calc {
+  display: flex;
+  justify-content: space-between;
+}
+.discount-row {
+  color: #555;
+  font-size: 13px;
+  margin-top: 2px;
+}
+.final-row {
+  font-weight: bold;
+  margin-top: 2px;
+}
 .summary-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
 .summary-row.total { font-weight: bold; font-size: 16px; }
 
