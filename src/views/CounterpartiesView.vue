@@ -51,15 +51,17 @@
       :title="`Видалити контрагента ${selectedForDelete?.name}?`"
       message="Ця дія незворотна. Чи дійсно ви хочете продовжити?"
       confirmText="Видалити"
-      confirmColor="danger"
+      confirm-variant="danger"
       @confirm="handleDelete"
-      @cancel="closeConfirmModal"
+      @close="closeConfirmModal"
     />
 
     <CounterpartyDrawer
       :is-open="isDrawerOpen"
       :counterparty="selectedForDrawer"
       @close="isDrawerOpen = false"
+      @refresh="onDrawerRefresh"
+      @deleted="onDrawerDeleted"
     />
   </div>
 </template>
@@ -172,6 +174,21 @@ const handleDelete = async () => {
 const handleRowClick = (item) => {
   selectedForDrawer.value = item
   isDrawerOpen.value = true
+}
+
+// Дровер відредагував контрагента — оновлюємо картку й список
+const onDrawerRefresh = () => {
+  if (store.currentCounterparty) {
+    selectedForDrawer.value = store.currentCounterparty
+  }
+  loadData()
+}
+
+// Дровер видалив контрагента — закриваємо й оновлюємо список
+const onDrawerDeleted = () => {
+  isDrawerOpen.value = false
+  selectedForDrawer.value = null
+  loadData()
 }
 </script>
 
