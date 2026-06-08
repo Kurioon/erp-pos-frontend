@@ -8,13 +8,25 @@
       </div>
 
       <div class="right-actions">
-        <div class="cashbox-filter-wrapper">
-          <BaseSelect v-model="selectedCashboxId" :options="cashboxOptions" placeholder="Оберіть касу" />
-        </div>
         <BaseButton variant="primary" @click="financeStore.exportCsv" :disabled="financeStore.isLoading">
           <span v-if="financeStore.isLoading">Завантаження...</span>
           <span v-else>Експорт CSV</span>
         </BaseButton>
+      </div>
+    </div>
+
+    <div class="search-row">
+      <BaseInput
+        v-model="searchQuery"
+        class="search-input"
+        placeholder="Пошук: ID, замовник, телефон, дата (РРРР-ММ-ДД)…"
+        @update:model-value="onSearchInput"
+      />
+      <div class="source-filter">
+        <BaseSelect v-model="sourceType" :options="sourceOptions" @update:model-value="onSourceChange" />
+      </div>
+      <div class="cashbox-filter-wrapper">
+        <BaseSelect v-model="selectedCashboxId" :options="cashboxOptions" placeholder="Оберіть касу" />
       </div>
     </div>
 
@@ -96,6 +108,7 @@ import { TRANSACTION_TYPE_LABELS, TRANSACTION_TYPE_CLASSES } from '@/constants/f
 import { formatCurrency, formatDate } from '@/utils/formatters'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import TransactionDetailsModal from '@/components/finance/TransactionDetailsModal.vue'
@@ -106,8 +119,33 @@ const cartStore = useCartStore()
 const selectedType = ref('all')
 const selectedCashboxId = ref('all')
 
+const searchQuery = ref('')
+const sourceType = ref('')
+const sourceOptions = [
+  { value: '', label: 'Всі джерела' },
+  { value: 'order', label: 'Замовлення' },
+  { value: 'repair', label: 'Ремонти' },
+]
+
 const selectedTx = ref(null)
 const isDetailsOpen = ref(false)
+
+const reloadTransactions = () => {
+  financeStore.fetchTransactions(1, {
+    search: searchQuery.value.trim(),
+    source_type: sourceType.value,
+  })
+}
+
+let searchTimeout = null
+const onSearchInput = () => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(reloadTransactions, 300)
+}
+
+const onSourceChange = () => {
+  reloadTransactions()
+}
 
 onMounted(() => {
   financeStore.fetchTransactions()
@@ -153,8 +191,12 @@ const filteredTransactions = computed(() => {
 </script>
 
 <style scoped>
-.filters-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.filters-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 16px; }
 .filter-group-pills { display: flex; gap: 8px; flex-shrink: 0; }
+
+.search-row { display: flex; gap: 12px; margin-bottom: 24px; align-items: stretch; flex-wrap: wrap; }
+.search-input { flex: 1 1 280px; min-width: 0; margin-bottom: 0 !important; }
+.source-filter { width: 200px; flex-shrink: 0; }
 .active-pill { background-color: #2563eb !important; color: #ffffff !important; }
 .right-actions { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
 .cashbox-filter-wrapper { width: 220px; }
@@ -185,5 +227,13 @@ const filteredTransactions = computed(() => {
   .filters-container { flex-direction: column; align-items: stretch; }
   .right-actions { justify-content: space-between; flex-wrap: wrap; }
   .cashbox-filter-wrapper { flex-grow: 1; width: auto; }
+}
+
+@media (max-width: 640px) {
+  .search-row { flex-direction: column; gap: 10px; }
+  .search-input, .source-filter, .cashbox-filter-wrapper { width: 100%; flex: none; }
+  .filter-group-pills { width: 100%; }
+  .filter-group-pills :deep(button) { flex: 1; }
+  .right-actions :deep(button) { width: 100%; }
 }
 </style>
