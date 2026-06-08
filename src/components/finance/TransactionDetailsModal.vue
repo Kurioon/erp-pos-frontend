@@ -291,7 +291,14 @@ const executeRefund = async () => {
 .loading-order { text-align: center; padding: 8px 0; }
 .text-muted { color: #94a3b8; font-size: 0.85rem; }
 
-.refund-confirm { display: flex; flex-direction: column; gap: 16px; min-width: 360px; }
+.refund-confirm { display: flex; flex-direction: column; gap: 16px; min-width: min(360px, 100%); }
+
+@media (max-width: 480px) {
+  .detail-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .item-name { max-width: 60vw; }
+  .refund-actions { flex-direction: column-reverse; }
+  .refund-actions :deep(button), .refund-actions .confirm-refund-btn { width: 100%; }
+}
 .refund-confirm-text { font-size: 0.95rem; color: #1e293b; line-height: 1.5; margin: 0; }
 .refund-cashbox-select { display: flex; flex-direction: column; gap: 6px; }
 .select-label { font-size: 0.85rem; font-weight: 600; color: #475569; }

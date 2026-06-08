@@ -35,6 +35,13 @@ export const useFinanceStore = defineStore('finance', () => {
       if (filters.date) {
         url += `&date=${filters.date}`
       }
+      // Уніфікований пошук (ID / замовник / телефон / дата) та фільтр джерела
+      if (filters.search) {
+        url += `&search=${encodeURIComponent(filters.search)}`
+      }
+      if (filters.source_type) {
+        url += `&source_type=${filters.source_type}`
+      }
       const response = await api.get(url)
       transactions.value = response.data.results || []
 
