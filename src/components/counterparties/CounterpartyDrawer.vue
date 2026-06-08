@@ -379,8 +379,50 @@ const handleRepairPaid = () => {
 }
 
 const handlePurchaseUpdate = async (payload) => {
-  isPurchaseViewOpen.value = false
-  loadData()
+  const id = selectedPurchase.value?.id
+  if (!id) {
+    isPurchaseViewOpen.value = false
+    return
+  }
+  try {
+    // 1) Видаляємо старі позиції закупівлі
+    const existingItems = selectedPurchase.value.items || []
+    await Promise.all(
+      existingItems.filter(i => i.id).map(i => api.delete(`/orders/${id}/items/${i.id}/`))
+    )
+    // 2) Створюємо нові позиції
+    if (payload.items && payload.items.length) {
+      await Promise.all(
+        payload.items.map(i => api.post(`/orders/${id}/items/`, {
+          product: i.product,
+          quantity: Number(i.quantity),
+          price: Number(i.price),
+        }))
+      )
+    }
+    // 3) Оновлюємо саме замовлення (сума + контрагент)
+    const patch = { total_amount: payload.total_amount }
+    if (payload.counterparty) patch.counterparty = payload.counterparty
+    await api.patch(`/orders/${id}/`, patch)
+
+    isPurchaseViewOpen.value = false
+    window.dispatchEvent(new CustomEvent('app-success', {
+      detail: { message: 'Закупівлю оновлено', type: 'success' }
+    }))
+
+    // 4) Якщо натиснули «Підтвердити» — одразу оприходувати (вибір складу)
+    if (payload.auto_confirm) {
+      orderToReceive.value = { id }
+      isReceiveModalOpen.value = true
+    }
+
+    await loadData()
+  } catch (error) {
+    console.error('Помилка оновлення закупівлі:', error)
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Не вдалося оновити закупівлю', type: 'error' }
+    }))
+  }
 }
 
 const approvePurchase = (purchase) => {
@@ -393,7 +435,7 @@ const handleReceiveConfirm = async ({ orderId, warehouseId }) => {
     await api.post(`/orders/${orderId}/receive/`, { warehouse: warehouseId })
     isReceiveModalOpen.value = false
     orderToReceive.value = null
-    window.dispatchEvent(new CustomEvent('app-success', { detail: { message: 'Закупівлю затверджено! Товар на складі.' } }))
+    window.dispatchEvent(new CustomEvent('app-success', { detail: { message: 'Закупівлю затверджено! Товар на складі.', type: 'success' } }))
     await loadData()
   } catch (error) {
     console.error('Помилка затвердження', error)

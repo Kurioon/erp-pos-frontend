@@ -132,6 +132,17 @@
       </div>
 
       <transition name="expand">
+        <div v-if="paymentType === 'full'" class="full-payment-section">
+          <CounterpartySelect
+            v-model="counterpartyId"
+            label="Замовник (необов'язково)"
+            role-filter="buyer"
+            class="mb-compact"
+          />
+        </div>
+      </transition>
+
+      <transition name="expand">
         <div v-if="paymentType === 'partial'" class="partial-payment-section">
           <CounterpartySelect
             v-model="counterpartyId"
