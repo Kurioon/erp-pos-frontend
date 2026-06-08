@@ -12,11 +12,11 @@
           />
         </div>
         <div class="header-actions">
-          <button class="header-action-btn edit-btn" @click="emit('edit')" title="Редагувати">
+          <button class="header-action-btn edit-btn" @click="isEditOpen = true" title="Редагувати">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             Редаг.
           </button>
-          <button class="header-action-btn delete-btn" @click="emit('delete')" title="Видалити">
+          <button class="header-action-btn delete-btn" @click="isDeleteOpen = true" title="Видалити">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             Видал.
           </button>
@@ -257,6 +257,26 @@
     @close="isReceiveModalOpen = false; orderToReceive = null"
     @confirm="handleReceiveConfirm"
   />
+
+  <!-- Редагування контрагента -->
+  <CounterpartyFormModal
+    :is-open="isEditOpen"
+    :counterparty="counterparty"
+    @close="isEditOpen = false"
+    @saved="onEdited"
+  />
+
+  <!-- Підтвердження видалення -->
+  <ConfirmModal
+    :is-open="isDeleteOpen"
+    :title="`Видалити контрагента ${counterparty?.name}?`"
+    message="Ця дія незворотна. Чи дійсно ви хочете продовжити?"
+    confirmText="Видалити"
+    confirm-variant="danger"
+    :is-loading="isDeleting"
+    @confirm="onDeleteConfirmed"
+    @close="isDeleteOpen = false"
+  />
 </template>
 
 <script setup>
@@ -266,6 +286,7 @@ import { formatCurrency, formatDate } from '@/utils/formatters'
 import { REPAIR_STATUS_LABELS } from '@/constants/repairs'
 import BaseStatusBadge from '@/components/ui/BaseStatusBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import CounterpartyFormModal from '@/components/counterparties/CounterpartyFormModal.vue'
 import PurchaseFormModal from '@/components/purchases/PurchaseFormModal.vue'
 import PendingOrderDetailsModal from '@/components/finance/PendingOrderDetailsModal.vue'
 import RepairDetailsModal from '@/components/repairs/RepairDetailsModal.vue'
@@ -284,7 +305,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'edit', 'delete', 'new-purchase'])
+const emit = defineEmits(['close', 'refresh', 'deleted', 'new-purchase'])
 const store = useCounterpartiesStore()
 const financeStore = useFinanceStore()
 const cartStore = useCartStore()
@@ -320,6 +341,37 @@ const isRepairPaymentOpen = ref(false)
 
 const isReceiveModalOpen = ref(false)
 const orderToReceive = ref(null)
+
+// Редагування / видалення контрагента
+const isEditOpen = ref(false)
+const isDeleteOpen = ref(false)
+const isDeleting = ref(false)
+
+const onEdited = async () => {
+  isEditOpen.value = false
+  // Оновлюємо дані профілю (для глобального дровера — через store.currentCounterparty)
+  try {
+    await store.fetchOne(props.counterparty.id)
+  } catch (e) {
+    console.error('Не вдалося оновити дані контрагента:', e)
+  }
+  emit('refresh')
+}
+
+const onDeleteConfirmed = async () => {
+  if (!props.counterparty?.id) return
+  isDeleting.value = true
+  try {
+    await store.remove(props.counterparty.id)
+    isDeleteOpen.value = false
+    emit('deleted', props.counterparty.id)
+    close()
+  } catch (e) {
+    console.error('Не вдалося видалити контрагента:', e)
+  } finally {
+    isDeleting.value = false
+  }
+}
 
 const openPurchaseModal = () => {
   isPurchaseModalOpen.value = true
