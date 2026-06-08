@@ -12,8 +12,14 @@
           />
         </div>
         <div class="header-actions">
-          <button class="icon-btn edit-btn" @click="emit('edit')" title="Редагувати">✏️</button>
-          <button class="icon-btn delete-btn" @click="emit('delete')" title="Видалити">🗑️</button>
+          <button class="header-action-btn edit-btn" @click="emit('edit')" title="Редагувати">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            Редаг.
+          </button>
+          <button class="header-action-btn delete-btn" @click="emit('delete')" title="Видалити">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            Видал.
+          </button>
           <button class="close-btn" @click="close">×</button>
         </div>
       </div>
@@ -43,7 +49,7 @@
             </div>
           </div>
           <div v-else class="notes-display">
-            <p v-if="counterparty.notes">{{ counterparty.notes }}</p>
+            <p v-if="localNotes">{{ localNotes }}</p>
             <p v-else class="empty-text">Немає нотаток</p>
           </div>
         </div>
@@ -51,7 +57,7 @@
         <hr class="divider" />
 
         <!-- СЕКЦІЯ ПОКУПЦЯ -->
-        <div v-if="['buyer', 'both'].includes(counterparty.role)" class="role-section">
+        <div v-if="['buyer', 'both'].includes(counterparty.role) || orders.length > 0 || serviceJobs.length > 0" class="role-section">
           <h3>Фінансовий баланс (Покупець)</h3>
           <div class="balance-cards">
             <div class="stat-card">
@@ -138,7 +144,7 @@
         <hr v-if="counterparty.role === 'both'" class="divider" />
 
         <!-- СЕКЦІЯ ПОСТАЧАЛЬНИКА -->
-        <div v-if="['supplier', 'both'].includes(counterparty.role)" class="role-section">
+        <div v-if="['supplier', 'both'].includes(counterparty.role) || purchases.length > 0" class="role-section">
           <h3>Фінансовий стан (Постачальник)</h3>
           <div class="balance-cards">
             <div class="stat-card">
@@ -181,7 +187,7 @@
                   <td class="text-right actions-col" @click.stop>
                     <div class="actions-wrapper" v-if="['draft', 'чернетка'].includes(String(purchase.status).toLowerCase())">
                       <button class="action-btn edit-btn" @click="openPurchaseView(purchase)">Редаг.</button>
-                      <button class="action-btn approve-btn" @click="approvePurchase(purchase.id)">Затв.</button>
+                      <button class="action-btn approve-btn" @click="approvePurchase(purchase)">Затв.</button>
                     </div>
                   </td>
                 </tr>
@@ -244,6 +250,13 @@
     @close="isRepairPaymentOpen = false"
     @paid="handleRepairPaid"
   />
+
+  <ReceiveOrderModal
+    :is-open="isReceiveModalOpen"
+    :order="orderToReceive"
+    @close="isReceiveModalOpen = false; orderToReceive = null"
+    @confirm="handleReceiveConfirm"
+  />
 </template>
 
 <script setup>
@@ -258,6 +271,7 @@ import PendingOrderDetailsModal from '@/components/finance/PendingOrderDetailsMo
 import RepairDetailsModal from '@/components/repairs/RepairDetailsModal.vue'
 import RepairPaymentModal from '@/components/repairs/RepairPaymentModal.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import ReceiveOrderModal from '@/components/orders/ReceiveOrderModal.vue'
 import api from '@/api/axios'
 import { useFinanceStore } from '@/stores/finance'
 import { useCartStore } from '@/stores/pos'
@@ -277,6 +291,7 @@ const cartStore = useCartStore()
 
 const isEditingNotes = ref(false)
 const editNotes = ref('')
+const localNotes = ref('')
 
 const balanceData = ref(null)
 const orders = ref([])
@@ -302,6 +317,9 @@ const isConfirmOpen = ref(false)
 const confirmMessage = ref('')
 const orderToPay = ref(null)
 const isRepairPaymentOpen = ref(false)
+
+const isReceiveModalOpen = ref(false)
+const orderToReceive = ref(null)
 
 const openPurchaseModal = () => {
   isPurchaseModalOpen.value = true
@@ -361,17 +379,66 @@ const handleRepairPaid = () => {
 }
 
 const handlePurchaseUpdate = async (payload) => {
-  isPurchaseViewOpen.value = false
-  loadData()
+  const id = selectedPurchase.value?.id
+  if (!id) {
+    isPurchaseViewOpen.value = false
+    return
+  }
+  try {
+    // 1) Видаляємо старі позиції закупівлі
+    const existingItems = selectedPurchase.value.items || []
+    await Promise.all(
+      existingItems.filter(i => i.id).map(i => api.delete(`/orders/${id}/items/${i.id}/`))
+    )
+    // 2) Створюємо нові позиції
+    if (payload.items && payload.items.length) {
+      await Promise.all(
+        payload.items.map(i => api.post(`/orders/${id}/items/`, {
+          product: i.product,
+          quantity: Number(i.quantity),
+          price: Number(i.price),
+        }))
+      )
+    }
+    // 3) Оновлюємо саме замовлення (сума + контрагент)
+    const patch = { total_amount: payload.total_amount }
+    if (payload.counterparty) patch.counterparty = payload.counterparty
+    await api.patch(`/orders/${id}/`, patch)
+
+    isPurchaseViewOpen.value = false
+    window.dispatchEvent(new CustomEvent('app-success', {
+      detail: { message: 'Закупівлю оновлено', type: 'success' }
+    }))
+
+    // 4) Якщо натиснули «Підтвердити» — одразу оприходувати (вибір складу)
+    if (payload.auto_confirm) {
+      orderToReceive.value = { id }
+      isReceiveModalOpen.value = true
+    }
+
+    await loadData()
+  } catch (error) {
+    console.error('Помилка оновлення закупівлі:', error)
+    window.dispatchEvent(new CustomEvent('api-error', {
+      detail: { message: 'Не вдалося оновити закупівлю', type: 'error' }
+    }))
+  }
 }
 
-const approvePurchase = async (id) => {
+const approvePurchase = (purchase) => {
+  orderToReceive.value = purchase
+  isReceiveModalOpen.value = true
+}
+
+const handleReceiveConfirm = async ({ orderId, warehouseId }) => {
   try {
-    await api.post(`/orders/${id}/approve/`)
-    window.dispatchEvent(new CustomEvent('app-success', { detail: { message: 'Закупівлю затверджено!' } }))
+    await api.post(`/orders/${orderId}/receive/`, { warehouse: warehouseId })
+    isReceiveModalOpen.value = false
+    orderToReceive.value = null
+    window.dispatchEvent(new CustomEvent('app-success', { detail: { message: 'Закупівлю затверджено! Товар на складі.', type: 'success' } }))
     await loadData()
-  } catch (e) {
-    console.error('Помилка затвердження', e)
+  } catch (error) {
+    console.error('Помилка затвердження', error)
   }
 }
 
@@ -401,7 +468,8 @@ watch(
   async (newVal) => {
     if (newVal && props.counterparty) {
       isEditingNotes.value = false
-      editNotes.value = props.counterparty.notes || ''
+      localNotes.value = props.counterparty.notes || ''
+      editNotes.value = localNotes.value
       await loadData()
     }
   }
@@ -409,29 +477,26 @@ watch(
 
 const loadData = async () => {
   const id = props.counterparty.id
-  const role = props.counterparty.role
 
-  if (['buyer', 'both'].includes(role)) {
-    store.fetchBalance(id).then(data => balanceData.value = data)
-    isLoadingOrders.value = true
-    store.fetchOrders(id, { order_type: 'retail' }).then(data => {
-      orders.value = data.results || []
-      isLoadingOrders.value = false
-    })
-    isLoadingJobs.value = true
-    store.fetchServiceJobs(id).then(data => {
-      serviceJobs.value = data.results || []
-      isLoadingJobs.value = false
-    })
-  }
+  store.fetchBalance(id).then(data => balanceData.value = data)
+  
+  isLoadingOrders.value = true
+  store.fetchOrders(id, { order_type: 'retail' }).then(data => {
+    orders.value = data.results || []
+    isLoadingOrders.value = false
+  })
+  
+  isLoadingJobs.value = true
+  store.fetchServiceJobs(id).then(data => {
+    serviceJobs.value = data.results || []
+    isLoadingJobs.value = false
+  })
 
-  if (['supplier', 'both'].includes(role)) {
-    isLoadingPurchases.value = true
-    store.fetchOrders(id, { order_type: 'purchase' }).then(data => {
-      purchases.value = data.results || []
-      isLoadingPurchases.value = false
-    })
-  }
+  isLoadingPurchases.value = true
+  store.fetchOrders(id, { order_type: 'purchase' }).then(data => {
+    purchases.value = data.results || []
+    isLoadingPurchases.value = false
+  })
 }
 
 const handleBackdropClick = () => {
@@ -444,12 +509,13 @@ const close = () => {
 
 const cancelNotesEdit = () => {
   isEditingNotes.value = false
-  editNotes.value = props.counterparty.notes || ''
+  editNotes.value = localNotes.value
 }
 
 const saveNotes = async () => {
   try {
     await store.update(props.counterparty.id, { notes: editNotes.value })
+    localNotes.value = editNotes.value
     isEditingNotes.value = false
   } catch (error) {
     console.error(error)
@@ -548,7 +614,13 @@ const getJobStatusLabel = (status) => {
   align-items: center;
 }
 
-.icon-btn, .close-btn {
+.header-action-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.header-action-btn.edit-btn { background: transparent; border: 1px solid #cbd5e1; color: #475569; }
+.header-action-btn.edit-btn:hover { background-color: #f1f5f9; color: #0f172a; }
+.header-action-btn.delete-btn { background: transparent; border: 1px solid #fca5a5; color: #ef4444; }
+.header-action-btn.delete-btn:hover { background-color: #fee2e2; }
+
+.close-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -556,14 +628,14 @@ const getJobStatusLabel = (status) => {
   border-radius: 6px;
   transition: background 0.2s;
   color: #64748b;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.icon-btn:hover { background: #f1f5f9; }
-.delete-btn:hover { background: #fee2e2; color: #ef4444; }
+.close-btn:hover { background: #f1f5f9; }
 
 .drawer-body {
   padding: 24px;

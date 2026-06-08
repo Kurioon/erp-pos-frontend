@@ -45,6 +45,7 @@ const selectedCashboxId = computed({
     const box = cartStore.availableCashboxes.find(b => b.id === newId)
     if (box) {
       cartStore.activeCashbox = box
+      cartStore.fetchProducts()
     }
   }
 })

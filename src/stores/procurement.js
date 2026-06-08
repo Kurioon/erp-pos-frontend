@@ -109,13 +109,19 @@ export const useProcurementStore = defineStore('procurement', () => {
   const createOrder = async (payload) => {
     isLoading.value = true
     try {
-      const orderResponse = await api.post('/orders/', {
+      const orderPayload = {
         order_type: 'purchase',
         status: PURCHASE_STATUSES.DRAFT,
         total_amount: payload.total_amount,
         comment_ttn: payload.comment_ttn,
         supplier_name_input: payload.supplier,
-      })
+      }
+      
+      if (payload.counterparty) orderPayload.counterparty = payload.counterparty
+      if (payload.related_retail_order) orderPayload.related_retail_order = payload.related_retail_order
+      if (payload.related_service_job) orderPayload.related_service_job = payload.related_service_job
+
+      const orderResponse = await api.post('/orders/', orderPayload)
 
       const newOrderId = orderResponse.data.id
 
@@ -174,11 +180,17 @@ export const useProcurementStore = defineStore('procurement', () => {
         await Promise.all(createPromises)
       }
 
-      await api.patch(`/orders/${id}/`, {
+      const orderPayload = {
         total_amount: payload.total_amount,
         comment_ttn: payload.comment_ttn,
         supplier_name_input: payload.supplier,
-      })
+      }
+      
+      if (payload.counterparty) orderPayload.counterparty = payload.counterparty
+      if (payload.related_retail_order) orderPayload.related_retail_order = payload.related_retail_order
+      if (payload.related_service_job) orderPayload.related_service_job = payload.related_service_job
+
+      await api.patch(`/orders/${id}/`, orderPayload)
 
       await fetchOrders()
       window.dispatchEvent(
