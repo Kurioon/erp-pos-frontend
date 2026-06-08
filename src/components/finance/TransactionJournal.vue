@@ -91,6 +91,16 @@
       </table>
     </div>
 
+    <div class="pagination-controls" v-if="financeStore.pagination.next || financeStore.pagination.previous">
+      <BaseButton variant="secondary" @click="changePage(currentPage - 1)" :disabled="!financeStore.pagination.previous">
+        Попередня
+      </BaseButton>
+      <span class="page-info">Сторінка {{ currentPage }}</span>
+      <BaseButton variant="secondary" @click="changePage(currentPage + 1)" :disabled="!financeStore.pagination.next">
+        Наступна
+      </BaseButton>
+    </div>
+
     <TransactionDetailsModal
       :is-open="isDetailsOpen"
       :tx="selectedTx"
@@ -129,9 +139,19 @@ const sourceOptions = [
 
 const selectedTx = ref(null)
 const isDetailsOpen = ref(false)
+const currentPage = ref(1)
 
 const reloadTransactions = () => {
+  currentPage.value = 1
   financeStore.fetchTransactions(1, {
+    search: searchQuery.value.trim(),
+    source_type: sourceType.value,
+  })
+}
+
+const changePage = (page) => {
+  currentPage.value = page
+  financeStore.fetchTransactions(page, {
     search: searchQuery.value.trim(),
     source_type: sourceType.value,
   })
@@ -212,6 +232,9 @@ const filteredTransactions = computed(() => {
 :deep(.type-income) { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 :deep(.type-expense) { background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 :deep(.type-neutral) { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+.pagination-controls { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 24px; }
+.page-info { font-weight: 600; color: #475569; font-size: 0.95rem; }
 .text-amount { font-size: 1rem; letter-spacing: -0.01em; }
 .amt-positive { color: #166534; }
 .amt-negative { color: #b91c1c; }
