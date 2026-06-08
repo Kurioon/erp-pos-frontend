@@ -18,8 +18,8 @@ import PosCart from '@/components/pos/PosCart.vue'
 
 const cartStore = useCartStore()
 
-onMounted(() => {
-  cartStore.fetchCashboxes()
+onMounted(async () => {
+  await cartStore.fetchCashboxes()
   cartStore.fetchProducts()
 })
 </script>

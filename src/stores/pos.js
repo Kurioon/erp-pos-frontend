@@ -89,7 +89,11 @@ export const useCartStore = defineStore('pos', () => {
       }
 
       products.value = allProducts.map((product) => {
-        const totalStock = stocksData
+        const warehouseStocks = activeCashbox.value && activeCashbox.value.warehouse
+          ? stocksData.filter((s) => Number(s.warehouse) === Number(activeCashbox.value.warehouse))
+          : stocksData
+
+        const totalStock = warehouseStocks
           .filter((s) => Number(s.nomenclature) === Number(product.id))
           .reduce((sum, stock) => sum + (Number(stock.quantity) || 0), 0)
         
