@@ -17,9 +17,9 @@
             <td class="text-muted font-medium">{{ order.id }}</td>
             <td class="font-bold text-dark">
               <a v-if="order.counterparty" href="#" @click.stop="openDrawer(order.counterparty)" class="text-link">
-                {{ order.supplier || 'Не вказано' }}
+                {{ order.supplier_name || order.counterparty_data?.name || 'Не вказано' }}
               </a>
-              <span v-else>{{ order.supplier || 'Не вказано' }}</span>
+              <span v-else>{{ order.supplier_name || 'Не вказано' }}</span>
             </td>
             <td class="text-muted">{{ order.date ? formatDate(order.date) : '—' }}</td>
             <td>
